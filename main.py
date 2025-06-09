@@ -12,6 +12,45 @@ import google.generativeai as genai
 from IPython.display import Markdown, display
 from openai import OpenAI
 
+def save_llm_call_payload(messages, messages_show):
+    """
+    Save the LLM call payload to JSON files.
+    
+    Args:
+        messages: Full LLM messages payload
+        messages_show: Truncated LLM messages payload for display
+    """
+    try:
+        # Save full payload
+        with open("llm_structured_call.json", "w", encoding="utf-8") as f:
+            json.dump(messages, f, indent=2, ensure_ascii=False)
+        
+        # Save show payload
+        with open("llm_structured_call_show.json", "w", encoding="utf-8") as f:
+            json.dump(messages_show, f, indent=2, ensure_ascii=False)
+        
+        print(f"Saved LLM call payload to JSON files ({len(messages)} messages)")
+    except Exception as e:
+        print(f"Error saving LLM call payload: {e}")
+
+def save_chat_history(chat_history):
+    """
+    Save the Gradio chat history to JSON file.
+    
+    Args:
+        chat_history: Current Gradio chat history
+    """
+    try:
+        if chat_history is None:
+            chat_history = []
+        
+        with open("chat_history_gradio.json", "w", encoding="utf-8") as f:
+            json.dump(chat_history, f, indent=2, ensure_ascii=False)
+        
+        print(f"Saved Gradio chat history ({len(chat_history)} messages)")
+    except Exception as e:
+        print(f"Error saving chat history: {e}")
+
 def load_env(filename=".env"):
     dotenv.load_dotenv()
     env_file = os.getenv("ENV_FILE", filename)
@@ -50,6 +89,37 @@ llm_chat_history = None
 llm_chat_history_show = None
 document_positions = {}  # Track position of each document in chat history: {doc_id: position_index}
 chat_position_counter = 0  # Counter to track next position for new documents
+
+# Initialize empty JSON files at startup
+def initialize_json_files():
+    """Initialize all JSON files as empty at startup."""
+    try:
+        save_chat_history([])
+        save_llm_call_payload([], [])
+        print("Initialized all JSON files as empty")
+    except Exception as e:
+        print(f"Error initializing JSON files: {e}")
+
+# Initialize files at startup
+initialize_json_files()
+
+def reset_all_state():
+    """Reset all internal state and JSON files when interface loads/reloads."""
+    global documents, document_order, llm_chat_history, llm_chat_history_show
+    global document_positions, chat_position_counter
+    
+    # Clear all internal state
+    documents.clear()
+    document_order.clear()
+    llm_chat_history = None
+    llm_chat_history_show = None
+    document_positions.clear()
+    chat_position_counter = 0
+    
+    # Clear all JSON files
+    initialize_json_files()
+    
+    print("Reset all state and JSON files on interface reload")
 
 def replace_images_in_markdown(markdown_str: str, images_dict: dict) -> str:
     """
@@ -513,6 +583,20 @@ def upload_and_process(files, chat_history):
         system_message = "\n".join(status_messages) + f"\n\nTotal documents: {len(documents)}. Chat history preserved."
         chat_history = chat_history + [{"role": "assistant", "content": system_message}]
     
+    # Save updated chat history and create/save LLM payload if documents exist
+    save_chat_history(chat_history)
+    
+    # If we have documents but no LLM chat history yet, create it and save
+    if documents and llm_chat_history is None:
+        # Create initial LLM payload with all documents
+        initial_messages, initial_messages_show = create_chat_messages_for_llm()
+        llm_chat_history = initial_messages.copy()
+        llm_chat_history_show = initial_messages_show.copy()
+        save_llm_call_payload(llm_chat_history, llm_chat_history_show)
+    elif llm_chat_history is not None:
+        # Save existing LLM payload
+        save_llm_call_payload(llm_chat_history, llm_chat_history_show)
+    
     return chat_history, generate_document_buttons()
 
 def create_chat_messages_for_llm(messages=None):
@@ -578,6 +662,9 @@ def add_user_and_placeholder(message, chat_history):
     chat_history.append({"role": "user", "content": message})
     # Append a placeholder assistant message (we'll replace '...' as we stream)
     chat_history.append({"role": "assistant", "content": "..."})
+
+    # Save chat history after user query is added
+    save_chat_history(chat_history)
 
     # We do NOT touch llm_chat_history here; that will be updated inside the streaming function.
     return chat_history
@@ -671,12 +758,20 @@ def stream_assistant_reply(message, chat_history):
         # Persist chat context for next time
         llm_chat_history = document_messages.copy()
         llm_chat_history_show = document_messages_show.copy()
+        
+        # Save updated chat history and LLM payload after response
+        save_chat_history(chat_history)
+        save_llm_call_payload(llm_chat_history, llm_chat_history_show)
 
     except Exception as e:
         error_message = f"Error generating response: {str(e)}"
         print(f"Error details: {e}")
         # Overwrite placeholder with error
         chat_history[-1]["content"] = error_message
+        
+        # Save chat history even on error
+        save_chat_history(chat_history)
+        
         yield chat_history
 
 # ---------------------------
@@ -718,7 +813,7 @@ with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
             with gr.Column(scale=2, elem_classes="sidebar"):
                 gr.Markdown("### PDF Content Viewer")
                 file_input = gr.File(label="Upload PDF", file_types=[".pdf"], file_count="multiple")
-                pdf_viewer = gr.HTML(label="Document Content")
+                pdf_viewer = gr.HTML(label="Document Content", value=generate_document_buttons())
             
             # Right side for chat interface
             with gr.Column(scale=3, elem_classes="chatbox"):
@@ -778,6 +873,11 @@ with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
             llm_chat_history_show = None
             document_positions = {}
             chat_position_counter = 0
+            
+            # Save cleared state to JSON files
+            save_chat_history([])
+            save_llm_call_payload([], [])
+            
             return []
 
         clear_btn.click(
@@ -789,6 +889,13 @@ with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
             examples=["AGV_Task_2023.pdf"],
             inputs=file_input,
         )
+    
+    # Reset state when interface loads/reloads
+    demo.load(
+        fn=lambda: (reset_all_state(), [], generate_document_buttons()),
+        outputs=[chatbot, pdf_viewer],
+        queue=False
+    )
 
 # Launch the app
 if __name__ == "__main__":

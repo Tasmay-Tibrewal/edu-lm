@@ -1,0 +1,40 @@
+[
+  {
+    "role": "system",
+    "content": "You are an assistant that helps users understand multiple document contents. The documents have been processed with OCR and contain both text and images."
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Document name: Tasmay_P_Tibrewal_CV_Final_1.1 1.pdf.\nThis document contains 1 pages with text and images."
+      },
+      {
+        "type": "text",
+        "text": "\n\n\n--------------------\n## Document 0 - Page 1:-\n\n"
+      },
+      {
+        "type": "text",
+        "text": "Remaining text in the page: # Tasmay Pankaj Tibrewal \n\n## Research Work\n\nHarvard University | Research Internship | Prof. Vijay Janapa Reddi | LLM for Hardware Design May '24 - Jun '24\n\n- Optimized performance of lightweight open-source models like GPT Neo, Llama 3.1 8b, Mixtral 8x7b through SFT, RLHF on high-quality SQuAD, QuArch and custom datasets, achieving performance comparable to GPT-4o and Claude 3.5 Sonnet\nTokeniser-py | Custom Tokenization Algorithm | LLM Preprocessing | [Demo] | [GitHub] | [PyPI Library] | [Dataset] Mar '25\n- Architected a tokenization algorithm (non-BPE), developed on 1B tokens from SlimPajama corpus, forming a vocabulary of 131,072 tokens, and python library (tokeniser-py) to directly use the tokeniser, also deployed it interactively on HF Spaces\n- Prioritized semantic representation over token-count minimization in design philosophy, outperforming GPT-4/4o (BPE) tokenizers in alphanumeric tokenization by $\\mathbf{2 - 3 \\%}$, also used a dynamic programming algorithm for tokenisation in $\\mathbf{O}(\\mathbf{n})$ time\nReproducibility Paper | Hexplanes | Machine Learning Reproducibility Challenge (MLRC) | [GitHub] Dec '23 - Feb '24\n- Reproduced HexPlane (CVPR 2023) architecture for 4D scene reconstruction, performed novel improvements (optical-flow loss, vector orthogonalization) and ablation studies on range of datasets with NERFs, 4D Gaussian Splatting \\& K-Planes\n- Resolved critical issues in the code base of 4D Gaussian splatting (CVPR 2024), successfully contributing to its GitHub\n\n\n## COMPETITIONS\n\n| Sarvam AI | Entity Normalization Challenge | Large Language Models Finetuning | [Report] | [Demo] | [Model] | Feb '25 |\n| :--: | :--: | :--: | :--: | :--: | :--: | :--: |\n| Developed an entity normalization system for 10 Indic languages, normalizing dates, currencies, and scientific units <br> - Implemented 3 approaches (agentic, algorithmic, \\& fine-tuning), applying PEFT (LoRA) to LLama-3.1-8B with unsloth, achieving 94.0 CHRF \\& 0.87 BLEU metrics (optimized performance across 46 training runs), deployed it on HF Spaces for free <br> - Engineered an algorithmic pipeline from scratch with language detection, multi-pass regex tokenization \\& an extensive language word mapping for entities, incorporating specialized parsers that validate across date, currency, unit \\& number formats |  |  |\n| :--: | :--: | :--: |\n| Inter IIT Technology Meet 12.0 | Gold Medal | Tool use Large Language Models | DevRev | [Report] | Nov '23 - Dec '23 |\n| - Devised the RTaC (Re-imagining tooling as coding) framework, handling dynamic, conditional, iterative and optimal multi-path tool-use as code function calls, solely achieving over $\\mathbf{1 7 \\%}$ performance improvements, surpassing SOTA techniques <br> - Performed RLHF \\& SFT with PEFT (LoRA) on code LMs like DeepSeek 1.3B and Code Llama 7B, obtaining over $\\mathbf{7 8 \\%}$ performance boost combined with RTAC on complex tasks on 1.3B model, being 5.7x cheaper \\& $\\mathbf{8 \\%}$ better than baseline GPT-4 |  |\n| Kharagpur Data Science Hackathon | Gold Medal | Research Paper Publishability | Pathway | [Report] | Jan '25 |\n| - Created TACC (ToT Actor-contrastive CoT Critic), a dual-hierarchical reasoning agent achieving $\\mathbf{9 2 \\%}$ accuracy ( $\\mathbf{1 7 \\%}$ increase) <br> - Designed SCHOLAR, a paper-search (over 190M papers) \\& conference recommendation agent and SCRIBE, a reasoning based voting model on SCHOLAR, a RAG approach and a cookbook LLM for conference selection (achieved $\\mathbf{9 0 \\%}$ accuracy) |  |\n| Smart India Hackathon | National Finalists | Bajaj Finserv Health Ltd | Aug '23 - Dec '23 <br> - Designed a computer-vision based hybrid system using transformer based Intern-VL \\& LayoutLM, combined with CNNs and U-Nets, trained on synthetically created fakes using DocTamper for fraud identification in medical insurance claims |  |\n\n## INTERNSHIPS\n\n| WorldQuant | Research Consultant | Apr '24 - Present |\n| :--: | :--: | :--: |\n| WorldQuant is a global quantitative asset management firm with over $\\$ 9$ billion in assets under management <br> - Distinguished as a top-tier performer, ranked among the top 200 research consultants globally and securing 2nd position at IIT Kharagpur with over 42 K points, simulating over 100 alphas in competitions like International Quant Championship (IQC) |  |\n| Ernst \\& Young | Summer Intern | Technical Consulting | State Data Ecosystem | Kolkata May '24 - Jun '24 |\n| Built AI solutions for agricultural sector clients - APEDA and Ministry of Agriculture, Tanzania <br> - Architected a fertilizer intelligence system for recommendation, inventory management \\& forecasting, and substandard product flagging using GANs for APEDA, and a Llama agent for MoA Tanzania deployed using SGLang, FastAPI \\& AWS EC2 |  |\n| Tata Steel | Winter Intern | Kolkata | [GitHub] | Dec '23 - May '24 |\n| Worked on LET's project for implementation of computer vision algorithms for automation of steel bar production <br> - Implemented Shi-Tomasi \\& Harrison algorithms (boosting efficiency \\& accuracy by $\\mathbf{3 7 x}, \\mathbf{1 7 \\%}$ ) alongside SW-CNNs \\& U-Nets (achieved $\\mathbf{9 6 \\%}$ accuracy in number extraction), developed novel PPCAI technique (3D structure detection in 2D diagrams) |  |\n\n## Other Experiences \\& Achievements\n\nZyke | Founder | B2B AI SaaS platform | [Demo video] | [zyke.in] Jul '24 - Present\n\n- Built SOTA Agentic systems for brand-voice creation, trend recommendation \\& content generation, securing $\\$ 17 \\mathrm{~K}$ in grants from CampusFund, AWS, GCP, Azure, Modal \\& Mongo DB and tested MVP with prominent brands like Reliance \\& Happilo\n- Engineered solutions for real-time trend analysis, attention heatmaps, brand-specific data crawling, finetuning, agentic generation \\& image editing through a memory-based, recursive system with agentic tools and semantic segmentation\nAutonomous Ground Vehicles Research Group | Undergraduate Researcher | Path Planning | Vision Aug '23 - Present\n- Worked with ROS on U-Penn's F1TENTH autonomous racing frameworks and gained expertise in DL Models like CNNs, GANs and NeRFs through UC Berkeley's CS-182 and Stanford's CS-229 courses and through their application in MLRC\nNotable Achievements \\& Industry Recognition | JEE Examination | Google Usability Research\n- Selected for Google's Gemma \\& AI Models user study (Gemma and AI models Research Team) and part of its startup program\n- Secured All India Rank (AIR) 5691 in JEE Advanced \\& AIR 1 in Physics for JEE Mains 2022 among 1M candidates\n\n"
+      }
+    ]
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "--------------------DOCUMENTS END--------------------\n--------------------------------------------------\n\n\n"
+      }
+    ]
+  },
+  {
+    "role": "user",
+    "content": "# User question:\nhi"
+  },
+  {
+    "role": "assistant",
+    "content": "Hello! How can I help you with the document about Tasmay Pankaj Tibrewal's CV?"
+  }
+]

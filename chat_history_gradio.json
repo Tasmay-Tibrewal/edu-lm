@@ -1,0 +1,32 @@
+[
+  {
+    "role": "user",
+    "metadata": null,
+    "content": "hi",
+    "options": null
+  },
+  {
+    "role": "assistant",
+    "metadata": null,
+    "content": "Please upload a PDF document first.",
+    "options": null
+  },
+  {
+    "role": "assistant",
+    "metadata": null,
+    "content": "✅ Added: 'Tasmay_P_Tibrewal_CV_Final_1.1 1.pdf'\n\nTotal documents: 1. Chat history preserved.",
+    "options": null
+  },
+  {
+    "role": "user",
+    "metadata": null,
+    "content": "hi",
+    "options": null
+  },
+  {
+    "role": "assistant",
+    "metadata": null,
+    "content": "Hello! How can I help you with the document about Tasmay Pankaj Tibrewal's CV?",
+    "options": null
+  }
+]

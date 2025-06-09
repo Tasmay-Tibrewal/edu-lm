@@ -1,0 +1,40 @@
+[
+  {
+    "role": "system",
+    "content": "You are an assistant that helps users understand multiple document contents. The documents have been processed with OCR and contain both text and images."
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Document name: Tasmay_P_Tibrewal_CV_Final_1.1 1.pdf.\nThis document contains 1 pages with text and images."
+      },
+      {
+        "type": "text",
+        "text": "\n\n\n--------------------\n## Document 0 - Page 1:-\n\n"
+      },
+      {
+        "type": "text",
+        "text": "Remaining text in the page: # Tasmay Pankaj Tibrewal \n\n## Research Work\n\nHarvard University | Research Internship | Prof. Vijay Janapa Reddi | LLM for Hardware Design May '24 - Jun '24\n\n- Optimized performance of lightweight open-source models like GPT Neo, Llama 3.1 8b, Mixtral 8x7b through SFT, RLHF on high-quality SQuAD, QuArch and custom datasets, achieving performance comparable to GPT-4o and Claude 3.5 Sonnet\nTokeniser-py | Custom Tokenization Algorithm | LLM Preprocessing | [Demo] | [GitHub] | [PyPI Library] | [Data\n\n"
+      }
+    ]
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "--------------------DOCUMENTS END--------------------\n--------------------------------------------------\n\n\n"
+      }
+    ]
+  },
+  {
+    "role": "user",
+    "content": "# User question:\nhi"
+  },
+  {
+    "role": "assistant",
+    "content": "Hello! How can I help you with the document about Tasmay Pankaj Tibrewal's CV?"
+  }
+]
