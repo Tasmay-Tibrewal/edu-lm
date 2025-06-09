@@ -43,13 +43,13 @@ openai_client = OpenAI(
 genai.configure(api_key=gemini_api_key)
 model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
 
-# Global variables to store the current document content
-current_document_content = ""
-current_document_text = ""  # Plain text version without images
-current_ocr_response = None  # Store the full OCR response
-file_name = ""
+# Global variables to store multiple documents content
+documents = {}  # Dictionary to store all document data: {doc_id: {content, text, ocr_response, file_name}}
+document_order = []  # List to maintain order of uploaded documents
 llm_chat_history = None
 llm_chat_history_show = None
+document_positions = {}  # Track position of each document in chat history: {doc_id: position_index}
+chat_position_counter = 0  # Counter to track next position for new documents
 
 def replace_images_in_markdown(markdown_str: str, images_dict: dict) -> str:
     """
@@ -172,100 +172,106 @@ def extract_text_from_ocr_response(ocr_response):
     
     return "\n\n".join(text_parts)
 
-def upload_and_process(file, chat_history):
+def generate_document_buttons():
     """
-    Process an uploaded PDF file and update the global document content.
+    Generate HTML interface showing all uploaded documents.
+    
+    Returns:
+        HTML string with document list and viewing interface
+    """
+    if not documents:
+        return "<div style='padding: 20px; background-color: black; color: #e0e0e0; border-radius: 8px;'>No documents uploaded yet. Please upload PDF files.</div>"
+    
+    # Create document selector interface
+    buttons_html = f"""
+    <div style="background-color: black; color: #e0e0e0; padding: 20px; border-radius: 8px; height: 600px; overflow-y: auto;">
+        <h3 style="color: #3498db; margin-bottom: 15px;">Uploaded Documents ({len(documents)}):</h3>
+    """
+    
+    for i, doc_id in enumerate(document_order):
+        doc_data = documents[doc_id]
+        file_name = doc_data["file_name"]
+        page_count = len(doc_data["ocr_response"].pages)
+        
+        # Create a preview of the content (first 200 characters)
+        content_preview = doc_data["text"][:200] + "..." if len(doc_data["text"]) > 200 else doc_data["text"]
+        
+        buttons_html += f"""
+        <div style="border: 1px solid #444; border-radius: 5px; margin-bottom: 15px; background-color: #1a1a1a;">
+            <div style="padding: 15px; border-bottom: 1px solid #444;">
+                <h4 style="color: #3498db; margin: 0 0 5px 0;">📄 {file_name}</h4>
+                <p style="color: #888; margin: 0; font-size: 12px;">Document {i} • {page_count} pages</p>
+                <p style="color: #ccc; margin: 5px 0 0 0; font-size: 11px; font-style: italic;">Preview: {content_preview}</p>
+            </div>
+            <div style="padding: 10px 15px;">
+                <details>
+                    <summary style="color: #3498db; cursor: pointer; font-size: 13px;">View Full Content</summary>
+                    <div style="margin-top: 10px; max-height: 400px; overflow-y: auto; background-color: #0a0a0a; padding: 10px; border-radius: 3px;">
+                        {markdown_to_html(doc_data["content"]).replace('height: 600px;', 'height: auto;')}
+                    </div>
+                </details>
+            </div>
+        </div>
+        """
+    
+    buttons_html += """
+        <div style="border-top: 1px solid #444; padding-top: 15px; margin-top: 15px;">
+            <p style="color: #888; font-size: 12px; margin: 0;">
+                💡 All documents are automatically included when chatting with the AI.
+            </p>
+        </div>
+    </div>
+    """
+    
+    return buttons_html
+
+def view_document(doc_id):
+    """
+    Display the content of a specific document.
     
     Args:
-        file: Uploaded file object from Gradio
-        chat_history: Current chat history
+        doc_id: Document ID to display
         
     Returns:
-        Updated chat history and HTML content for the sidebar
+        HTML content of the selected document
     """
-    global file_name, current_document_content, current_document_text, current_ocr_response
+    if doc_id not in documents:
+        return "<div style='padding: 20px; background-color: black; color: red; border-radius: 8px;'>Document not found.</div>"
     
-    if file is None:
-        return chat_history, "<div style='padding: 20px; background-color: black; color: #e0e0e0; border-radius: 8px;'>Please upload a PDF file.</div>"
-    
-    try:
-        pdf_file = Path(file.name)
-        file_name = pdf_file.stem + ".pdf"
+    doc_data = documents[doc_id]
+    return markdown_to_html(doc_data["content"])
 
-        print(f"\n\nProcessing PDF file: {file_name}\n")
-        
-        # Upload PDF file to Mistral's OCR service
-        uploaded_file = mistral_client.files.upload(
-            file={
-                "file_name": pdf_file.stem,
-                "content": pdf_file.read_bytes(),
-            },
-            purpose="ocr",
-        )
-        
-        # Get URL for the uploaded file
-        signed_url = mistral_client.files.get_signed_url(file_id=uploaded_file.id, expiry=1)
-        
-        # Process PDF with OCR, including embedded images
-        pdf_response = mistral_client.ocr.process(
-            document=DocumentURLChunk(document_url=signed_url.url),
-            model="mistral-ocr-latest",
-            include_image_base64=True
-        )
-        
-        # Store the full OCR response
-        current_ocr_response = pdf_response
-        
-        # Get combined markdown with images
-        markdown_content = get_combined_markdown(pdf_response)
-        current_document_content = markdown_content
-        
-        # Extract plain text for the LLM
-        current_document_text = extract_text_from_ocr_response(pdf_response)
-        
-        # Convert markdown to HTML with styling for the sidebar
-        html_content = markdown_to_html(markdown_content)
-        
-        # Add a system message to the chat history
-        system_message = "PDF uploaded and processed successfully. You can now chat with its contents."
-        if chat_history is None:
-            chat_history = []
-        chat_history = chat_history + [{"role": "assistant", "content": system_message}]
-        
-        return chat_history, html_content
-        
-    except Exception as e:
-        error_message = f"Error processing PDF: {str(e)}"
-        if chat_history is None:
-            chat_history = []
-        chat_history = chat_history + [{"role": "assistant", "content": error_message}]
-        return chat_history, "<div style='padding: 20px; background-color: black; color: red; border-radius: 8px;'>Error processing PDF. Please try again.</div>"
-
-def create_chat_messages_for_llm(messages=None):
+def create_document_content_block(doc_id, doc_index):
     """
-    Create a simplified representation of the document content for the LLM using OpenAI chat format.
-    Reduces token usage by limiting the number of images and text chunks.
+    Create document content block for a specific document.
     
+    Args:
+        doc_id: Document ID
+        doc_index: Document index for naming scheme
+        
     Returns:
-        A list of message objects with text and selected images
+        Tuple of (user_content, user_content_show) for this document
     """
-    global current_ocr_response, file_name
+    if doc_id not in documents:
+        # Document was deleted
+        file_name = f"[DELETED DOCUMENT - was at position {doc_index}]"
+        return [{
+            "type": "text",
+            "text": f"Deleted Document name: {file_name}.\nNote: User had initially uploaded this document but later removed (deleted) it from the your context manually. You may find some information about this document in the chat history, which is left unchanged, but you do not explicitly have context to this document now, since it is deleted."
+        }], [{
+            "type": "text", 
+            "text": f"Deleted Document name: {file_name}.\nNote: User had initially uploaded this document but later removed (deleted) it from the your context manually. You may find some information about this document in the chat history, which is left unchanged, but you do not explicitly have context to this document now, since it is deleted."
+        }]
     
-    if not current_ocr_response:
-        return [{"role": "user", "content":  "No document content available."}]
+    doc_data = documents[doc_id]
+    ocr_response = doc_data["ocr_response"]
+    file_name = doc_data["file_name"]
     
-    if messages is None:
-        # Start with a system message
-        messages = [
-            {"role": "system", "content": "You are an assistant that helps users understand document content. The document has been processed with OCR and contains both text and images."}
-        ]
-    
-    # Create a user message with content array that will contain text and selected images
     user_content = []
     user_content_show = []
     
-    # Add a text summary of the document structure
-    page_count = len(current_ocr_response.pages)
+    # Add document info
+    page_count = len(ocr_response.pages)
     doc_info = {
         "type": "text",
         "text": f"Document name: {file_name}.\nThis document contains {page_count} pages with text and images."
@@ -273,19 +279,19 @@ def create_chat_messages_for_llm(messages=None):
     user_content.append(doc_info)
     user_content_show.append(doc_info)
 
-    for i, page in enumerate(current_ocr_response.pages):
-        
+    # Process each page
+    for page_index, page in enumerate(ocr_response.pages):
         page_markdown_str = page.markdown
         image_data = {}
 
         user_content.append({
             "type": "text",
-            "text": f"\n\n\n{'-'*20}\n## Page {i + 1}:-\n\n"
+            "text": f"\n\n\n{'-'*20}\n## Document {doc_index} - Page {page_index + 1}:-\n\n"
         })
 
         user_content_show.append({
             "type": "text",
-            "text": f"\n\n\n{'-'*20}\n## Page {i + 1}:-\n\n"
+            "text": f"\n\n\n{'-'*20}\n## Document {doc_index} - Page {page_index + 1}:-\n\n"
         })
 
         for img in page.images:
@@ -307,14 +313,17 @@ def create_chat_messages_for_llm(messages=None):
                     "text": txt[:500] + "...\n\n" if len(txt) > 500 else txt + "\n\n"
                 })
 
+            # Use new naming scheme: doc-0-page-0-image-0
+            new_img_name = f"doc-{doc_index}-page-{page_index}-{img_name}"
+            
             user_content.append({
                 "type": "text",
-                "text": f"Attaching an image in the page. Image name: {'page-'+str(i)+'-'+img_name}.\n\n"
+                "text": f"Attaching an image in the page. Image name: {new_img_name}.\n\n"
             })
 
             user_content_show.append({
                 "type": "text",
-                "text": f"Attaching an image in the page. Image name: {'page-'+str(i)+'-'+img_name}.\n\n"
+                "text": f"Attaching an image in the page. Image name: {new_img_name}.\n\n"
             })
 
             user_content.append({
@@ -341,11 +350,213 @@ def create_chat_messages_for_llm(messages=None):
                 "text": f"Remaining text in the page: {page_markdown_str[:500]}\n\n" if len(page_markdown_str) > 500 else f"Remaining text in the page: {page_markdown_str}\n\n"
             })
     
-    messages_show = messages.copy()
+    return user_content, user_content_show
+
+def upload_and_process(files, chat_history):
+    """
+    Smart document management with preserved chronological chat history.
     
-    # Add the content array to the user message
-    messages.append({"role": "user", "content": user_content})
-    messages_show.append({"role": "user", "content": user_content_show})
+    Args:
+        files: List of uploaded file objects from Gradio (or single file)
+        chat_history: Current chat history
+        
+    Returns:
+        Updated chat history and HTML buttons for document selection
+    """
+    global documents, document_order, llm_chat_history, llm_chat_history_show
+    global document_positions, chat_position_counter
+    
+    # Handle empty uploads
+    if files is None:
+        files = []
+    elif not isinstance(files, list):
+        files = [files]
+    
+    # Filter out None values and get current file names
+    current_files = [f for f in files if f is not None]
+    current_file_names = [Path(f.name).name for f in current_files]
+    
+    # Get existing file names
+    existing_file_names = [documents[doc_id]["file_name"] for doc_id in document_order]
+    
+    # Find files to remove (existing files not in current upload)
+    files_to_remove = [name for name in existing_file_names if name not in current_file_names]
+    
+    # Find files to add (current files not in existing)
+    files_to_add = [f for f in current_files if Path(f.name).name not in existing_file_names]
+    
+    processed_files = []
+    failed_files = []
+    removed_files = []
+    
+    # Handle document removals (mark as deleted but keep chronological position)
+    for file_name_to_remove in files_to_remove:
+        doc_ids_to_remove = [doc_id for doc_id in document_order 
+                            if documents[doc_id]["file_name"] == file_name_to_remove]
+        for doc_id in doc_ids_to_remove:
+            # Update the document block in chat history to show it's deleted
+            if llm_chat_history is not None and doc_id in document_positions:
+                position = document_positions[doc_id]
+                doc_index = document_order.index(doc_id)
+                
+                # Create deleted content block but keep the original filename for reference
+                deleted_content = [{
+                    "type": "text",
+                    "text": f"Document name: {documents[doc_id]['file_name']}.\nNote: User had initially uploaded this document but later removed (deleted) it from the your context manually. You may find some information about this document in the chat history, which is left unchanged, but you do not explicitly have context to this document now, since it is deleted."
+                }]
+                deleted_content_show = deleted_content.copy()
+                
+                # Update the chat history at the stored position
+                if position < len(llm_chat_history):
+                    llm_chat_history[position]["content"] = deleted_content
+                if position < len(llm_chat_history_show):
+                    llm_chat_history_show[position]["content"] = deleted_content_show
+            
+            del documents[doc_id]
+            document_order.remove(doc_id)
+            removed_files.append(file_name_to_remove)
+            print(f"Removed document: {file_name_to_remove}")
+    
+    # Process only new files
+    for file in files_to_add:
+        try:
+            pdf_file = Path(file.name)
+            file_name = pdf_file.name
+            
+            print(f"\n\nProcessing NEW PDF file: {file_name}\n")
+            
+            # Upload PDF file to Mistral's OCR service
+            uploaded_file = mistral_client.files.upload(
+                file={
+                    "file_name": pdf_file.stem,
+                    "content": pdf_file.read_bytes(),
+                },
+                purpose="ocr",
+            )
+            
+            # Get URL for the uploaded file
+            signed_url = mistral_client.files.get_signed_url(file_id=uploaded_file.id, expiry=1)
+            
+            # Process PDF with OCR, including embedded images
+            pdf_response = mistral_client.ocr.process(
+                document=DocumentURLChunk(document_url=signed_url.url),
+                model="mistral-ocr-latest",
+                include_image_base64=True
+            )
+            
+            # Generate unique document ID
+            doc_id = f"doc_{len(documents)}"
+            while doc_id in documents:
+                doc_id = f"doc_{len(documents) + len(processed_files) + 1}"
+            
+            # Get combined markdown with images
+            markdown_content = get_combined_markdown(pdf_response)
+            
+            # Extract plain text for the LLM
+            plain_text = extract_text_from_ocr_response(pdf_response)
+            
+            # Store document data
+            documents[doc_id] = {
+                "file_name": file_name,
+                "content": markdown_content,
+                "text": plain_text,
+                "ocr_response": pdf_response
+            }
+            
+            # Add to order list
+            document_order.append(doc_id)
+            
+            # If we have existing chat history, append new document at the END (chronological order)
+            if llm_chat_history is not None:
+                doc_index = len(document_order) - 1  # Current index
+                new_doc_content, new_doc_content_show = create_document_content_block(doc_id, doc_index)
+                
+                # Simply append at the end to maintain chronological order
+                llm_chat_history.append({"role": "user", "content": new_doc_content})
+                llm_chat_history_show.append({"role": "user", "content": new_doc_content_show})
+                
+                # Store position for new document
+                document_positions[doc_id] = len(llm_chat_history) - 1
+            else:
+                # Mark position for when chat history is created
+                document_positions[doc_id] = chat_position_counter
+                chat_position_counter += 1
+            
+            processed_files.append(file_name)
+            
+        except Exception as e:
+            print(f"Error processing {file.name}: {str(e)}")
+            failed_files.append(file.name)
+    
+    # Create system message
+    if chat_history is None:
+        chat_history = []
+    
+    status_messages = []
+    
+    if processed_files:
+        if len(processed_files) == 1:
+            status_messages.append(f"✅ Added: '{processed_files[0]}'")
+        else:
+            status_messages.append(f"✅ Added {len(processed_files)} files: {', '.join(processed_files)}")
+    
+    if removed_files:
+        if len(removed_files) == 1:
+            status_messages.append(f"🗑️ Removed: '{removed_files[0]}'")
+        else:
+            status_messages.append(f"🗑️ Removed {len(removed_files)} files: {', '.join(removed_files)}")
+    
+    if failed_files:
+        status_messages.append(f"❌ Failed to process: {', '.join(failed_files)}")
+    
+    if status_messages:
+        system_message = "\n".join(status_messages) + f"\n\nTotal documents: {len(documents)}. Chat history preserved."
+        chat_history = chat_history + [{"role": "assistant", "content": system_message}]
+    
+    return chat_history, generate_document_buttons()
+
+def create_chat_messages_for_llm(messages=None):
+    """
+    Create initial chat messages with all document contents for the LLM.
+    Only used when starting a new conversation - thereafter we use preserved history.
+    
+    Returns:
+        A list of message objects with text and images from all documents
+    """
+    global documents, document_order, document_positions, chat_position_counter
+    
+    if not documents:
+        return [{"role": "user", "content": "No document content available."}], [{"role": "user", "content": "No document content available."}]
+    
+    # Start with a system message
+    messages = [
+        {"role": "system", "content": "You are an assistant that helps users understand multiple document contents. The documents have been processed with OCR and contain both text and images."}
+    ]
+    messages_show = [
+        {"role": "system", "content": "You are an assistant that helps users understand multiple document contents. The documents have been processed with OCR and contain both text and images."}
+    ]
+    
+    # Add each document as a separate user message block
+    for doc_index, doc_id in enumerate(document_order):
+        doc_content, doc_content_show = create_document_content_block(doc_id, doc_index)
+        
+        messages.append({"role": "user", "content": doc_content})
+        messages_show.append({"role": "user", "content": doc_content_show})
+        
+        # Store position for this document
+        document_positions[doc_id] = len(messages) - 1
+    
+    # Add documents end marker
+    end_marker = [{
+        "type": "text",
+        "text": f"{'-'*20}DOCUMENTS END{'-'*20}\n{'-'*50}\n\n\n"
+    }]
+    
+    messages.append({"role": "user", "content": end_marker})
+    messages_show.append({"role": "user", "content": end_marker})
+    
+    # Update position counter
+    chat_position_counter = len(messages)
 
     return messages, messages_show
 
@@ -381,10 +592,10 @@ def stream_assistant_reply(message, chat_history):
     Streaming function that replaces the placeholder '...' with actual tokens from Gemini.
     Yields updated chat_history on each chunk. Keeps spinner until first chunk arrives.
     """
-    global current_document_text, current_ocr_response, llm_chat_history, llm_chat_history_show
+    global documents, llm_chat_history, llm_chat_history_show
 
-    # If no document is uploaded, just replace the placeholder with an error message
-    if not current_ocr_response:
+    # If no documents are uploaded, just replace the placeholder with an error message
+    if not documents:
         response_text = "Please upload a PDF document first."
         if chat_history is None:
             chat_history = []
@@ -401,7 +612,7 @@ def stream_assistant_reply(message, chat_history):
         else:
             document_messages, document_messages_show = llm_chat_history, llm_chat_history_show
 
-        user_message = f"{'-'*10}DOCUMENT END{'-'*10}\n{'-'*20}\n\n\n# User question:\n"
+        user_message = f"# User question:\n"
         user_message += message if message is not None else "No message provided."
 
         # Append the user's new question to the context
@@ -411,6 +622,7 @@ def stream_assistant_reply(message, chat_history):
 
         print(f"Sending {len(document_messages)} messages to Gemini\n")
         print(f"Message to Gemini:\n{json.dumps(document_messages_show, indent=4)}\n\n")
+        # print(f"Message to Gemini:\n{json.dumps(document_messages, indent=4)}\n\n")
 
         # Prepare streaming call (this returns a generator-like object immediately)
         stream_response = openai_client.chat.completions.create(
@@ -496,16 +708,16 @@ css = """
 }
 """
 
-with gr.Blocks(title="PDF Chat Assistant", css=css) as demo:
+with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
     with gr.Column(elem_classes="container"):
-        gr.Markdown("# PDF Chat Assistant", elem_classes="title")
-        gr.Markdown("Upload a PDF file to chat with its contents and view the rendered markdown.")
+        gr.Markdown("# Multi-Document PDF Chat Assistant", elem_classes="title")
+        gr.Markdown("Upload multiple PDF files to chat with their contents. Each document will be processed and all content will be available for chatting.")
         
         with gr.Row():
             # Left sidebar for PDF viewer
             with gr.Column(scale=2, elem_classes="sidebar"):
                 gr.Markdown("### PDF Content Viewer")
-                file_input = gr.File(label="Upload PDF", file_types=[".pdf"])
+                file_input = gr.File(label="Upload PDF", file_types=[".pdf"], file_count="multiple")
                 pdf_viewer = gr.HTML(label="Document Content")
             
             # Right side for chat interface
@@ -561,9 +773,11 @@ with gr.Blocks(title="PDF Chat Assistant", css=css) as demo:
         )
         
         def clear_chat():
-            global llm_chat_history, llm_chat_history_show
+            global llm_chat_history, llm_chat_history_show, document_positions, chat_position_counter
             llm_chat_history = None
             llm_chat_history_show = None
+            document_positions = {}
+            chat_position_counter = 0
             return []
 
         clear_btn.click(
