@@ -63,11 +63,17 @@ load_env()
 
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 mistral_api_key = os.getenv("MISTRAL_API_KEY")
+groq_api_key = os.getenv("GROQ_API_KEY")
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
 if not gemini_api_key:
     raise ValueError("GEMINI_API_KEY is not set in the environment variables.")
 if not mistral_api_key:
     raise ValueError("MISTRAL_API_KEY is not set in the environment variables.")
+if not groq_api_key:
+    raise ValueError("GROQ_API_KEY is not set in the environment variables.")
+if not openai_api_key:
+    raise ValueError("OPENAI_API_KEY is not set in the environment variables.")
 
 # Initialize Mistral client
 mistral_client = Mistral(api_key=mistral_api_key)
@@ -77,6 +83,15 @@ openai_client = OpenAI(
     api_key=gemini_api_key,
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
 )
+
+# Initialize Groq client for ASR
+groq_client = OpenAI(
+    api_key=groq_api_key,
+    base_url="https://api.groq.com/openai/v1"
+)
+
+# Initialize OpenAI client for TTS
+openai_tts_client = OpenAI(api_key=openai_api_key)
 
 # Initialize Gemini (keeping this for backward compatibility)
 genai.configure(api_key=gemini_api_key)
@@ -599,6 +614,95 @@ def upload_and_process(files, chat_history):
     
     return chat_history, generate_document_buttons()
 
+# ---------------------------
+# ASR and TTS Functions
+# ---------------------------
+
+def transcribe_audio(audio_file):
+    """
+    Transcribe audio using Groq's Whisper-large-v3 model.
+    
+    Args:
+        audio_file: Audio file path or file object
+        
+    Returns:
+        Transcribed text string
+    """
+    try:
+        if audio_file is None:
+            return ""
+        
+        print(f"Transcribing audio file: {audio_file}")
+        
+        # Open the audio file
+        with open(audio_file, "rb") as file:
+            transcription = groq_client.audio.transcriptions.create(
+                file=file,
+                model="whisper-large-v3",
+                response_format="text"
+            )
+        
+        print(f"Transcription result: {transcription}")
+        return transcription
+        
+    except Exception as e:
+        print(f"Error in ASR: {e}")
+        return f"Error transcribing audio: {str(e)}"
+
+def text_to_speech(text):
+    """
+    Convert text to speech using OpenAI's gpt-4o-mini-tts model.
+    
+    Args:
+        text: Text to convert to speech
+        
+    Returns:
+        Audio bytes in memory or None if error
+    """
+    try:
+        if not text or len(text.strip()) == 0:
+            return None
+            
+        print(f"Converting text to speech: {text[:100]}...")
+        
+        # Create TTS request and store in memory
+        response = openai_tts_client.audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice="alloy",   # You can change this to nova, echo, fable, onyx, or shimmer
+            input=text,
+            response_format="mp3"
+        )
+        
+        # Return the audio content as bytes
+        audio_bytes = response.content
+        print(f"TTS audio generated in memory ({len(audio_bytes)} bytes)")
+        return audio_bytes
+        
+    except Exception as e:
+        print(f"Error in TTS: {e}")
+        return None
+
+def process_audio_input(audio_file):
+    """
+    Process audio input through ASR and put text in input box.
+    
+    Args:
+        audio_file: Recorded audio file
+        
+    Returns:
+        Transcribed text for input box
+    """
+    if audio_file is None:
+        return ""
+    
+    # Transcribe the audio
+    transcribed_text = transcribe_audio(audio_file)
+    
+    if transcribed_text and not transcribed_text.startswith("Error"):
+        return f"🎤 {transcribed_text}"
+    else:
+        return ""
+
 def create_chat_messages_for_llm(messages=None):
     """
     Create initial chat messages with all document contents for the LLM.
@@ -818,14 +922,35 @@ with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
             # Right side for chat interface
             with gr.Column(scale=3, elem_classes="chatbox"):
                 gr.Markdown("### Chat with PDF Content")
-                chatbot = gr.Chatbot(height=500, type="messages")
-                msg = gr.Textbox(
-                    placeholder="Ask questions about the PDF content...",
-                    show_label=False
+                chatbot = gr.Chatbot(height=400, type="messages")
+                
+                # Audio input section
+                with gr.Row():
+                    with gr.Column(scale=3):
+                        msg = gr.Textbox(
+                            placeholder="Ask questions about the PDF content...",
+                            show_label=False
+                        )
+                    with gr.Column(scale=1, min_width=120):
+                        audio_input = gr.Audio(
+                            sources=["microphone"],
+                            type="filepath",
+                            label="🎤 Voice Input",
+                            show_label=False,
+                            container=False
+                        )
+                
+                # Audio output section
+                audio_output = gr.Audio(
+                    label="🔊 AI Response Audio",
+                    visible=True,
+                    autoplay=True,
+                    value=None
                 )
                 
                 with gr.Row():
                     submit_btn = gr.Button("Send", elem_classes="button")
+                    tts_btn = gr.Button("🔊 Listen to Last Response", elem_classes="button")
                     clear_btn = gr.Button("Clear Chat", elem_classes="button")
         
         # Set up event handlers
@@ -883,6 +1008,39 @@ with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
         clear_btn.click(
             fn=clear_chat,
             outputs=[chatbot]
+        )
+        
+        # ASR: Handle audio input - only put text in input box, don't auto-send
+        audio_input.change(
+            fn=process_audio_input,
+            inputs=[audio_input],
+            outputs=[msg],
+            queue=False
+        )
+        
+        # TTS: Handle text-to-speech for last response
+        def get_last_response_and_convert_to_speech(chat_history):
+            if chat_history and len(chat_history) > 0:
+                # Get the last assistant message
+                for msg in reversed(chat_history):
+                    if msg["role"] == "assistant" and msg["content"] not in ["...", ""]:
+                        # Convert to speech
+                        audio_bytes = text_to_speech(msg["content"])
+                        if audio_bytes:
+                            # Create a temporary file for Gradio to display
+                            import tempfile
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
+                                temp_file.write(audio_bytes)
+                                temp_file_path = temp_file.name
+                            return temp_file_path, gr.update(visible=True)
+                        else:
+                            return None, gr.update(visible=False)
+            return None, gr.update(visible=False)
+        
+        tts_btn.click(
+            fn=get_last_response_and_convert_to_speech,
+            inputs=[chatbot],
+            outputs=[audio_output, audio_output]
         )
         
         gr.Examples(
