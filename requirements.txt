@@ -1,0 +1,12 @@
+google-generativeai
+langchain
+langchain-text-splitters
+langchain-chroma 
+langchain-google-genai
+langchain-openai
+langchain_community
+numpy
+rank_bm25
+chromadb
+python-dotenv
+tqdm
