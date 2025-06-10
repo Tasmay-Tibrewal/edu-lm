@@ -44,14 +44,15 @@ def generate_enriched_contexts(mini_docs):
         # ADDED: Strict word count constraint in the prompt
         prompt = f"""
         You are an expert at creating contextual summaries for document chunks.
-        Your entire summary MUST be between {MIN_CONTEXT_WORDS} and {MAX_CONTEXT_WORDS} words.
 
         **Rules:**
         1. Start with the exact phrase: "This context is for pages {doc['start_page']} to {doc['end_page']}."
         2. Briefly summarize what these specific pages talk about.
         3. Briefly summarize all content that came before these pages, based on the 'Summary of Preceding Pages'.
-        4. List the key visual elements described (e.g., images, diagrams, maps).
-        5. List the key textual elements (e.g., geological concepts, definitions, methods).
+        4. Briefly summarize the key visual elements described (e.g., images, diagrams, maps).
+        5. Briefly summarize the key textual elements (e.g., geological concepts, definitions, methods).
+
+        Your entire summary MUST be between {MIN_CONTEXT_WORDS} and {MAX_CONTEXT_WORDS} words.
 
         **Summary of Preceding Pages:**
         {preceding_text_summary}

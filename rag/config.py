@@ -16,11 +16,11 @@ FILE_PATHS = ["geology.txt"] # Add more files like ["geology.txt", "physics.txt"
 LOG_FILE = "rag_query_log.txt"
 
 # --- Chunking and Context Parameters ---
-CHUNK_SIZE = 256  # Target words per chunk
-CHUNK_OVERLAP = 64 # Target words for overlap
+CHUNK_SIZE = 200  # Target words per chunk
+CHUNK_OVERLAP = 50 # Target words for overlap
 # Word count limits for the LLM-generated contextual summary
-MIN_CONTEXT_WORDS = 120
-MAX_CONTEXT_WORDS = 200
+MIN_CONTEXT_WORDS = 150
+MAX_CONTEXT_WORDS = 250
 
 # --- Database Path ---
 VECTOR_DB_PATH = "./chroma_db_"

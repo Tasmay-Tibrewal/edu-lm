@@ -88,7 +88,7 @@ class HybridRAG:
     def query(self, user_query, top_k=10):
         if not self.bm25:
             return "Retriever has not been built. Please process data first."
-httio to http
+
         # 1. Vector Search
         vector_results = self.vector_store.similarity_search(user_query, k=top_k)
         
