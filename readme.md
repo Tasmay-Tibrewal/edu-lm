@@ -12,29 +12,32 @@
 4. [Configuration](#configuration)
 5. [Usage Guide](#usage-guide)
 6. [Architecture](#architecture)
-7. [API Integration](#api-integration)
-8. [File Structure](#file-structure)
-9. [Troubleshooting](#troubleshooting)
-10. [Contributing](#contributing)
-11. [License](#license)
+7. [Module Structure](#module-structure)
+8. [Detailed Implementation](#detailed-implementation)
+9. [API Integration](#api-integration)
+10. [File Structure](#file-structure)
+11. [Troubleshooting](#troubleshooting)
+12. [Contributing](#contributing)
+13. [License](#license)
 
 ---
 
 ## Overview
 
-This application is a sophisticated multi-media chat assistant that combines advanced OCR, AI language models, video processing, and audio capabilities. Built with Gradio, it provides an intuitive interface for uploading, processing, and conversing with multiple PDF documents and videos simultaneously.
+This application is a sophisticated multi-media chat assistant that combines advanced OCR, AI language models, video processing, and audio capabilities. Built with Gradio and organized into modular components, it provides an intuitive interface for uploading, processing, and conversing with multiple PDF documents and videos simultaneously.
 
 ### Key Capabilities
 
-- **Multi-document support**: Upload and manage multiple PDF files simultaneously
-- **Video integration**: Support for local video files and YouTube videos with embedded viewing
-- **Advanced OCR**: Extract text and images from PDFs using Mistral's OCR service
-- **AI-powered chat**: Conversation with document content using Gemini 2.5 Flash
-- **Voice interaction**: Speech-to-text input and text-to-speech output
-- **Real-time streaming**: Token-by-token response streaming for immediate feedback
-- **Persistent state**: Maintains chat history and document context across sessions
-- **Unified media viewer**: Side-by-side document and video viewer with chat interface
-- **Structured data export**: Automatic generation of structured JSON data for documents and videos
+- **Multi-document support**: Upload and manage multiple PDF files simultaneously  
+- **Video integration**: Support for local video files and YouTube videos with embedded viewing  
+- **Advanced OCR**: Extract text and images from PDFs using Mistral's OCR service  
+- **AI-powered chat**: Conversation with document content using Gemini 2.5 Flash  
+- **Voice interaction**: Speech-to-text input and text-to-speech output  
+- **Real-time streaming**: Token-by-token response streaming for immediate feedback  
+- **Persistent state**: Maintains chat history and document context across sessions  
+- **Unified media viewer**: Side-by-side document and video viewer with chat interface  
+- **Structured data export**: Automatic generation of structured JSON data for documents and videos  
+- **Modular architecture**: Well-organized codebase with separated concerns for maintainability
 
 ---
 
@@ -75,6 +78,7 @@ This application is a sophisticated multi-media chat assistant that combines adv
 - **Video tracking**: `video_structured_info.json` for video metadata (future feature)
 - **Session management**: State preservation across application restarts
 - **Debug capabilities**: Detailed logging and payload inspection
+- **Document deletion handling**: On document removal, the LLM call payload replaces the removed document's content block with a deletion info block and appends an internal deletion notification.
 
 ---
 
@@ -94,7 +98,7 @@ This application is a sophisticated multi-media chat assistant that combines adv
 
 2. **Install dependencies**
    ```bash
-   pip install gradio python-dotenv mistralai google-generativeai openai markdown pathlib IPython base64 re shutil json
+   pip install gradio python-dotenv mistralai google-generativeai openai markdown pathlib IPython base64 re shutil json groq
    ```
 
 3. **Set up environment variables**
@@ -135,7 +139,7 @@ This application is a sophisticated multi-media chat assistant that combines adv
 
 ### Model Configuration
 
-The application uses the following models (configurable in `main.py`):
+The application uses the following models (configurable in [`config.py`](config.py:1)):
 
 - **LLM**: `gemini-2.5-flash-preview-05-20` (via OpenAI-compatible endpoint)
 - **OCR**: `mistral-ocr-latest`
@@ -191,52 +195,154 @@ The application uses the following models (configurable in `main.py`):
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Gradio UI     │◄──►│   Application    │◄──►│   External APIs │
-│                 │    │     Logic        │    │                 │
+│                 │    │     Modules      │    │                 │
 │ • File Upload   │    │                  │    │ • Mistral OCR   │
-│ • Video Upload  │    │ • Document Mgmt  │    │ • Gemini LLM    │
-│ • Chat Interface│    │ • Video Mgmt     │    │ • Groq ASR      │
-│ • Audio I/O     │    │ • State Mgmt     │    │ • OpenAI TTS    │
-│ • Media Viewer  │    │ • Stream Handling│    │ • YouTube API   │
+│ • Video Upload  │    │ • Document Utils │    │ • Gemini LLM    │
+│ • Chat Interface│    │ • Video Utils    │    │ • Groq ASR      │
+│ • Audio I/O     │    │ • Audio Utils    │    │ • OpenAI TTS    │
+│ • Media Viewer  │    │ • State Manager  │    │ • YouTube API   │
+│                 │    │ • Data Manager   │    │                 │
+│                 │    │ • UI Utils       │    │                 │
+│                 │    │ • Config         │    │                 │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-### Data Flow
+---
 
-1. **Document Processing**:
+## Module Structure
+
+The application is organized into separate modules for better maintainability and separation of concerns:
+
+### Core Modules
+
+| Module | File | Purpose |
+|--------|------|---------|
+| **Configuration** | [`config.py`](config.py:1) | Environment loading and API client initialization |
+| **Data Management** | [`data_manager.py`](data_manager.py:1) | JSON file persistence and data operations |
+| **Document Processing** | [`document_utils.py`](document_utils.py:1) | PDF processing, OCR, and document management |
+| **Video Processing** | [`video_utils.py`](video_utils.py:1) | Video upload and YouTube integration |
+| **Audio Processing** | [`audio_utils.py`](audio_utils.py:1) | Speech-to-text and text-to-speech functionality |
+| **UI Components** | [`ui_utils.py`](ui_utils.py:1) | HTML generation and user interface components |
+| **State Management** | [`state_manager.py`](state_manager.py:1) | Application state and chat history management |
+| **Main Application** | [`main.py`](main.py:1) | Gradio UI setup and global variable coordination |
+
+### Module Dependencies
+
+```
+main.py
+├── config.py (API clients)
+├── data_manager.py (JSON persistence)
+├── document_utils.py (PDF processing)
+├── video_utils.py (video handling)
+├── audio_utils.py (speech processing)
+├── ui_utils.py (HTML generation)
+└── state_manager.py (chat management)
+```
+
+### Key Features of Modular Design
+
+- **Separation of Concerns**: Each module handles a specific aspect of functionality
+- **Maintainability**: Easy to update and debug individual components
+- **Testability**: Modules can be tested independently
+- **Reusability**: Functions can be reused across different parts of the application
+- **Global State Management**: [`main.py`](main.py:1) maintains global variables while modules handle business logic
+
+---
+
+## Detailed Implementation
+
+### 1. Configuration Module ([`config.py`](config.py:1))
+
+**Environment Setup & Client Initialization**
+- **[`load_env()`](config.py:6)**: Loads environment variables from `.env` file
+- **API Key Validation**: Validates all required API keys (Gemini, Mistral, Groq, OpenAI)
+- **[`initialize_api_clients()`](config.py:28)**: Creates and returns all API client instances
+- **Client Types**:
+  - `mistral_client` – PDF OCR processing
+  - `openai_client` (Gemini endpoint) – LLM chat responses
+  - `groq_client` – Whisper ASR via Groq
+  - `openai_tts_client` – OpenAI TTS generation
+
+### 2. Data Management Module ([`data_manager.py`](data_manager.py:1))
+
+**JSON Persistence & Data Operations**
+- **[`initialize_json_files()`](data_manager.py:6)**: Creates empty JSON files on startup
+- **[`save_chat_history()`](data_manager.py:20)**: Persists Gradio chat history
+- **[`save_llm_call_payload()`](data_manager.py:30)**: Saves LLM conversation payloads
+- **[`save_docs_structured_info()`](data_manager.py:47)**: Exports structured document data
+- **[`generate_docs_structured_info()`](data_manager.py:60)**: Creates structured JSON from document data
+
+### 3. Document Processing Module ([`document_utils.py`](document_utils.py:1))
+
+**PDF Processing & OCR Management**
+- **[`upload_and_process_document()`](document_utils.py:145)**: Handles single PDF upload and OCR
+- **[`create_document_content_block()`](document_utils.py:14)**: Generates LLM-compatible content blocks
+- **[`create_chat_messages_for_llm()`](document_utils.py:106)**: Builds complete LLM context
+- **[`view_document()`](document_utils.py:135)**: Handles document viewing functionality
+- **OCR Processing**: Integrates with Mistral OCR for text and image extraction
+
+### 4. Video Processing Module ([`video_utils.py`](video_utils.py:1))
+
+**Video Upload & YouTube Integration**
+- **[`process_video_upload()`](video_utils.py:6)**: Handles local video files and YouTube URLs
+- **[`extract_youtube_id()`](video_utils.py:49)**: Extracts video ID from YouTube URLs
+- **Video Storage**: In-memory storage with metadata tracking
+- **Duplicate Prevention**: Avoids re-uploading same videos
+
+### 5. Audio Processing Module ([`audio_utils.py`](audio_utils.py:1))
+
+**Speech Processing & Audio Generation**
+- **[`transcribe_audio()`](audio_utils.py:6)**: Groq Whisper speech-to-text
+- **[`text_to_speech()`](audio_utils.py:38)**: OpenAI TTS text-to-speech
+- **[`process_audio_input()`](audio_utils.py:72)**: Voice input processing
+- **[`get_last_response_and_convert_to_speech()`](audio_utils.py:94)**: TTS for AI responses
+
+### 6. UI Components Module ([`ui_utils.py`](ui_utils.py:1))
+
+**HTML Generation & Interface Components**
+- **[`generate_document_buttons()`](ui_utils.py:6)**: Creates document navigation HTML
+- **[`generate_media_viewer()`](ui_utils.py:23)**: Unified document and video viewer
+- **Responsive Design**: Mobile-friendly HTML components
+- **Interactive Elements**: Expandable content and video players
+
+### 7. State Management Module ([`state_manager.py`](state_manager.py:1))
+
+**Application State & Chat Management**
+- **[`add_user_and_placeholder()`](state_manager.py:6)**: Adds user message with placeholder
+- **[`stream_assistant_reply()`](state_manager.py:16)**: Handles streaming LLM responses
+- **[`clear_chat()`](state_manager.py:74)**: Clears chat while preserving documents
+- **[`reset_all_state()`](state_manager.py:85)**: Complete application state reset
+
+### 8. Main Application ([`main.py`](main.py:1))
+
+**Gradio UI & Global Coordination**
+- **Global Variables**: Manages application-wide state
+- **Wrapper Functions**: Bridges modules with global state
+- **UI Event Handlers**: Connects Gradio events to module functions
+- **Session Management**: Coordinates data flow between modules
+
+### Data Flow Architecture
+
+1. **Document Processing Flow**:
    ```
-   PDF Upload → Mistral OCR → Markdown + Images → Document Store → Structured JSON
+   PDF Upload → document_utils.py → Mistral OCR → data_manager.py → JSON Storage
    ```
 
-2. **Video Processing**:
+2. **Video Processing Flow**:
    ```
-   Video Upload/YouTube URL → Video Store → Media Viewer → Structured Data
-   ```
-
-3. **Chat Processing**:
-   ```
-   User Input → Context Building → Gemini API → Streaming Response → Audio Output
+   Video Upload/YouTube → video_utils.py → In-Memory Storage → ui_utils.py → Display
    ```
 
-4. **Audio Processing**:
+3. **Chat Processing Flow**:
    ```
-   Audio Input → Groq Whisper → Text Input
-   Response Text → OpenAI TTS → Audio Output
+   User Input → state_manager.py → document_utils.py → Gemini API → Streaming Response
    ```
 
-### Key Components
-
-| Component | Responsibility |
-|-----------|----------------|
-| `upload_and_process()` | PDF upload and OCR processing |
-| `process_video_upload()` | Video file and YouTube URL processing |
-| `stream_assistant_reply()` | AI response generation with streaming |
-| `add_user_and_placeholder()` | Immediate UI feedback for user queries |
-| `create_chat_messages_for_llm()` | Context preparation for AI model |
-| `generate_media_viewer()` | Unified document and video interface |
-| `generate_docs_structured_info()` | Structured document data generation |
-| `transcribe_audio()` | Speech-to-text conversion |
-| `text_to_speech()` | Text-to-speech generation |
-| `save_*_payload()` | Data persistence functions |
+4. **Audio Processing Flow**:
+   ```
+   Audio Input → audio_utils.py → Groq Whisper → Text Input
+   Response Text → audio_utils.py → OpenAI TTS → Audio Output
+   ```
 
 ---
 
@@ -245,29 +351,34 @@ The application uses the following models (configurable in `main.py`):
 ### Mistral OCR Service
 - **Purpose**: Extract text and images from PDF documents
 - **Model**: `mistral-ocr-latest`
+- **Module**: [`document_utils.py`](document_utils.py:1)
 - **Output**: Markdown with base64-encoded images
 - **Features**: Multi-page support, image preservation, structured data export
 
 ### Google Gemini (via OpenAI endpoint)
 - **Purpose**: Primary conversational AI
 - **Model**: `gemini-2.5-flash-preview-05-20`
+- **Module**: [`state_manager.py`](state_manager.py:1)
 - **Context**: Up to 2M tokens for large document support
 - **Features**: Streaming responses, multi-modal input, immediate feedback
 
 ### Groq Whisper
 - **Purpose**: Speech recognition
 - **Model**: `whisper-large-v3`
+- **Module**: [`audio_utils.py`](audio_utils.py:1)
 - **Input**: Audio files (various formats)
 - **Output**: Transcribed text for chat input
 
 ### OpenAI TTS
 - **Purpose**: Text-to-speech conversion
 - **Model**: `gpt-4o-mini-tts`
+- **Module**: [`audio_utils.py`](audio_utils.py:1)
 - **Voice**: Configurable (default: "alloy")
 - **Output**: MP3 audio format with auto-play
 
 ### YouTube Integration
 - **Purpose**: Video embedding and playback
+- **Module**: [`video_utils.py`](video_utils.py:1)
 - **Method**: Direct URL parsing and iframe embedding
 - **Features**: Automatic video ID extraction, duplicate prevention
 
@@ -277,7 +388,14 @@ The application uses the following models (configurable in `main.py`):
 
 ```
 project/
-├── main.py                          # Main application file
+├── main.py                          # Main application with Gradio UI
+├── config.py                        # Environment and API client configuration
+├── data_manager.py                  # JSON persistence and data operations
+├── document_utils.py                # PDF processing and OCR functionality
+├── video_utils.py                   # Video upload and YouTube integration
+├── audio_utils.py                   # Speech-to-text and text-to-speech
+├── ui_utils.py                      # HTML generation and UI components
+├── state_manager.py                 # Application state and chat management
 ├── .env                            # Environment variables (create this)
 ├── readme.md                       # This documentation
 ├── requirements.txt                # Python dependencies (create this)
@@ -301,13 +419,18 @@ The application automatically creates and maintains several JSON files:
 - **`docs_structured_info.json`**: Structured document information with content and metadata
 - **`video_structured_info.json`**: Video metadata and information (future feature)
 
-### Structured Data Schema
+### Module Organization
 
-The `docs_structured_info.json` follows a specific schema with:
-- Document metadata (name, ID, availability status)
-- Page-by-page content with markdown and images
-- Image tags with base64 data for AI processing
-- Hierarchical organization for multi-document support
+Each module is self-contained with specific responsibilities:
+
+- **[`config.py`](config.py:1)**: Centralized configuration management
+- **[`data_manager.py`](data_manager.py:1)**: All JSON operations and data persistence
+- **[`document_utils.py`](document_utils.py:1)**: Complete PDF processing pipeline
+- **[`video_utils.py`](video_utils.py:1)**: Video handling and YouTube integration
+- **[`audio_utils.py`](audio_utils.py:1)**: Audio processing and speech services
+- **[`ui_utils.py`](ui_utils.py:1)**: HTML generation and UI components
+- **[`state_manager.py`](state_manager.py:1)**: Chat state and conversation management
+- **[`main.py`](main.py:1)**: Global state coordination and Gradio interface
 
 ---
 
@@ -342,6 +465,11 @@ The `docs_structured_info.json` follows a specific schema with:
    - Verify Gemini API access and quotas
    - Monitor browser console for WebSocket errors
 
+6. **Module Import Errors**
+   - Ensure all module files are in the same directory as [`main.py`](main.py:1)
+   - Check for syntax errors in individual modules
+   - Verify Python path and module accessibility
+
 ### Performance Tips
 
 1. **Large Documents**: The application handles large PDFs but may be slower with very large files
@@ -349,6 +477,7 @@ The `docs_structured_info.json` follows a specific schema with:
 3. **API Limits**: Monitor your API usage across all services
 4. **Browser Performance**: Use modern browsers for best streaming and video experience
 5. **Video Storage**: Videos are kept in memory during session - restart app to free memory
+6. **Modular Loading**: Individual modules can be debugged separately for faster development
 
 ### Debug Mode
 
@@ -357,6 +486,7 @@ Enable detailed logging by checking the console output when running `python main
 - Video upload confirmations
 - API call details
 - Structured data generation logs
+- Module loading and initialization status
 
 ---
 
@@ -381,6 +511,8 @@ We welcome contributions to improve this multi-media chat assistant!
 - **Export features**: PDF generation, conversation exports, media downloads
 - **Security enhancements**: Input validation, API key management
 - **Testing**: Unit tests, integration tests, performance benchmarks
+- **Module enhancements**: Additional features for existing modules
+- **New modules**: Additional functionality in separate modules
 
 ### Development Guidelines
 
@@ -390,6 +522,21 @@ We welcome contributions to improve this multi-media chat assistant!
 - Test with various PDF types, video formats, and sizes
 - Document any new dependencies or configuration options
 - Ensure video processing maintains memory efficiency
+- **Modular Development**: Add new features as separate modules when possible
+- **Function Documentation**: Include parameter and return value documentation
+- **Error Handling**: Implement proper error handling in each module
+- **Global State**: Use wrapper functions in [`main.py`](main.py:1) to manage global variables
+
+### Module Development Guidelines
+
+When creating new modules or modifying existing ones:
+
+1. **Single Responsibility**: Each module should handle one specific area of functionality
+2. **Clean Interfaces**: Functions should have clear parameters and return values
+3. **Error Handling**: Include try/catch blocks and meaningful error messages
+4. **Documentation**: Add comprehensive docstrings and comments
+5. **Testing**: Test modules independently when possible
+6. **Global State**: Avoid direct global variable access; use parameters instead
 
 ---
 
@@ -417,7 +564,8 @@ This application integrates with several third-party services. Please review the
 - **Groq** for fast Whisper inference
 - **OpenAI** for high-quality text-to-speech
 - **YouTube** for video embedding capabilities
+- **Python Community** for excellent libraries and development tools
 
 ---
 
-*Last updated: January 2025*
+*Last updated: June 2025 - Refactored to modular architecture*
