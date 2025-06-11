@@ -4,6 +4,8 @@ import gradio as gr
 import json
 import markdown
 import base64
+import re
+import shutil
 from pathlib import Path
 from mistralai import Mistral
 from mistralai import DocumentURLChunk, ImageURLChunk, TextChunk
@@ -32,6 +34,104 @@ def save_llm_call_payload(messages, messages_show):
         print(f"Saved LLM call payload to JSON files ({len(messages)} messages)")
     except Exception as e:
         print(f"Error saving LLM call payload: {e}")
+
+def generate_docs_structured_info():
+    """
+    Generate structured document information according to the JSON schema.
+    Only includes available documents (deleted documents are completely removed).
+    
+    Returns:
+        List of document information dictionaries matching the schema
+    """
+    global documents, document_order
+    
+    structured_docs = []
+    
+    for doc_index, doc_id in enumerate(document_order):
+        if doc_id in documents:
+            # Document is available - add it to the structured info
+            doc_data = documents[doc_id]
+            ocr_response = doc_data["ocr_response"]
+            
+            # Build document content
+            document_content = []
+            
+            for page_index, page in enumerate(ocr_response.pages):
+                # Extract page markdown content and replace image references with XML tags
+                page_markdown = page.markdown
+                
+                # Collect images for this page
+                page_images = []
+                image_data = {}
+                
+                for img in page.images:
+                    image_data[img.id] = img.image_base64
+                
+                # Replace image references in markdown with XML tags and collect image info
+                img_id_counter = 0
+                for img_name, base64_str in image_data.items():
+                    # Create XML tag format: <doc-{doc_index}-page-{page_index}-img-{img_id}>
+                    xml_tag = f"<doc-{doc_index}-page-{page_index}-img-{img_id_counter}>"
+                    
+                    # Replace the markdown image reference with XML tag
+                    page_markdown = page_markdown.replace(
+                        f"![{img_name}]({img_name})", 
+                        xml_tag
+                    )
+                    
+                    # Add to page images
+                    page_images.append({
+                        "image_id": img_id_counter,
+                        "image_tag": f"doc-{doc_index}-page-{page_index}-img-{img_id_counter}",
+                        "image_base64_data": base64_str
+                    })
+                    
+                    img_id_counter += 1
+                
+                # Build page structure
+                page_info = {
+                    "page_num": page_index,
+                    "page_markdown_content": {
+                        "content_type": "text",
+                        "content": page_markdown
+                    },
+                    "page_image_content": page_images
+                }
+                
+                document_content.append(page_info)
+            
+            # Build document structure
+            doc_info = {
+                "document_name": doc_data["file_name"],
+                "document_id": doc_index,
+                "document_info_available": 1,
+                "document_content": document_content
+            }
+            
+            structured_docs.append(doc_info)
+        # Note: Deleted documents are completely skipped - not included in the schema
+    
+    return structured_docs
+
+def save_docs_structured_info():
+    """
+    Save the structured document information to docs_structured_info.json file and update in-memory cache.
+    """
+    global structured_docs_cache
+    
+    try:
+        structured_docs = generate_docs_structured_info()
+        
+        # Update in-memory cache
+        structured_docs_cache = structured_docs.copy()
+        
+        # Save to file
+        with open("docs_structured_info.json", "w", encoding="utf-8") as f:
+            json.dump(structured_docs, f, indent=2, ensure_ascii=False)
+        
+        print(f"Saved structured document info to docs_structured_info.json and updated cache ({len(structured_docs)} documents)")
+    except Exception as e:
+        print(f"Error saving structured document info: {e}")
 
 def save_chat_history(chat_history):
     """
@@ -97,13 +197,16 @@ openai_tts_client = OpenAI(api_key=openai_api_key)
 genai.configure(api_key=gemini_api_key)
 model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
 
-# Global variables to store multiple documents content
+# Global variables to store multiple documents and videos content
 documents = {}  # Dictionary to store all document data: {doc_id: {content, text, ocr_response, file_name}}
 document_order = []  # List to maintain order of uploaded documents
+videos = {}  # Dictionary to store video data: {video_id: {file_path, file_name, video_type, url}}
+video_order = []  # List to maintain order of uploaded videos
 llm_chat_history = None
 llm_chat_history_show = None
 document_positions = {}  # Track position of each document in chat history: {doc_id: position_index}
 chat_position_counter = 0  # Counter to track next position for new documents
+structured_docs_cache = []  # In-memory cache for structured document information
 
 # Initialize empty JSON files at startup
 def initialize_json_files():
@@ -111,6 +214,7 @@ def initialize_json_files():
     try:
         save_chat_history([])
         save_llm_call_payload([], [])
+        save_docs_structured_info()  # Initialize the new structured docs file
         print("Initialized all JSON files as empty")
     except Exception as e:
         print(f"Error initializing JSON files: {e}")
@@ -120,16 +224,19 @@ initialize_json_files()
 
 def reset_all_state():
     """Reset all internal state and JSON files when interface loads/reloads."""
-    global documents, document_order, llm_chat_history, llm_chat_history_show
-    global document_positions, chat_position_counter
+    global documents, document_order, videos, video_order, llm_chat_history, llm_chat_history_show
+    global document_positions, chat_position_counter, structured_docs_cache
     
     # Clear all internal state
     documents.clear()
     document_order.clear()
+    videos.clear()
+    video_order.clear()
     llm_chat_history = None
     llm_chat_history_show = None
     document_positions.clear()
     chat_position_counter = 0
+    structured_docs_cache.clear()  # Clear the structured documents cache
     
     # Clear all JSON files
     initialize_json_files()
@@ -337,16 +444,11 @@ def create_document_content_block(doc_id, doc_index):
     Returns:
         Tuple of (user_content, user_content_show) for this document
     """
+    # Note: This function should only be called for existing documents
+    # Deleted documents are handled by completely removing them from document_order
     if doc_id not in documents:
-        # Document was deleted
-        file_name = f"[DELETED DOCUMENT - was at position {doc_index}]"
-        return [{
-            "type": "text",
-            "text": f"Deleted Document name: {file_name}.\nNote: User had initially uploaded this document but later removed (deleted) it from the your context manually. You may find some information about this document in the chat history, which is left unchanged, but you do not explicitly have context to this document now, since it is deleted."
-        }], [{
-            "type": "text", 
-            "text": f"Deleted Document name: {file_name}.\nNote: User had initially uploaded this document but later removed (deleted) it from the your context manually. You may find some information about this document in the chat history, which is left unchanged, but you do not explicitly have context to this document now, since it is deleted."
-        }]
+        # This should not happen in normal operation with the new deletion logic
+        return [], []
     
     doc_data = documents[doc_id]
     ocr_response = doc_data["ocr_response"]
@@ -437,6 +539,286 @@ def create_document_content_block(doc_id, doc_index):
     
     return user_content, user_content_show
 
+# ---------------------------
+# Video Processing Functions
+# ---------------------------
+
+def extract_youtube_id(url):
+    """
+    Extract YouTube video ID from various YouTube URL formats.
+    
+    Args:
+        url: YouTube URL string
+        
+    Returns:
+        Video ID string or None if not a valid YouTube URL
+    """
+    youtube_regex = re.compile(
+        r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})'
+    )
+    match = youtube_regex.search(url)
+    return match.group(1) if match else None
+
+def is_youtube_url(url):
+    """Check if a URL is a YouTube URL."""
+    return extract_youtube_id(url) is not None
+
+def process_video_upload(files, youtube_url, chat_history):
+    """
+    Process video uploads (both file uploads and YouTube URLs).
+    Keeps videos in memory without saving to disk.
+    
+    Args:
+        files: List of uploaded video files
+        youtube_url: YouTube URL string (if provided)
+        chat_history: Current chat history
+        
+    Returns:
+        Updated chat history and video viewer HTML
+    """
+    global videos, video_order
+    
+    processed_videos = []
+    failed_videos = []
+    
+    # Get existing video names/urls to prevent duplicates
+    existing_video_names = [videos[vid_id]["file_name"] for vid_id in video_order]
+    existing_youtube_ids = [videos[vid_id].get("youtube_id") for vid_id in video_order if videos[vid_id]["video_type"] == "youtube"]
+    
+    # Handle video file uploads
+    if files is not None:
+        if not isinstance(files, list):
+            files = [files]
+        
+        for file in files:
+            if file is None:
+                continue
+                
+            try:
+                file_path = Path(file.name)
+                file_name = file_path.name
+                file_ext = file_path.suffix.lower()
+                
+                # Check if video already exists
+                if file_name in existing_video_names:
+                    print(f"Video {file_name} already exists, skipping...")
+                    continue
+                
+                # Check if it's a supported video format
+                supported_formats = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv']
+                if file_ext not in supported_formats:
+                    failed_videos.append(f"{file_name} (unsupported format)")
+                    continue
+                
+                print(f"\n\nProcessing video file: {file_name}\n")
+                
+                # Generate unique video ID
+                video_id = f"video_{len(videos)}"
+                while video_id in videos:
+                    video_id = f"video_{len(videos) + len(processed_videos) + 1}"
+                
+                # Store video data with the original file path (Gradio will handle it)
+                videos[video_id] = {
+                    "file_name": file_name,
+                    "file_path": file.name,  # Keep original temp file path
+                    "video_type": "local",
+                    "url": None
+                }
+                
+                video_order.append(video_id)
+                processed_videos.append(file_name)
+                
+            except Exception as e:
+                print(f"Error processing video {file.name}: {str(e)}")
+                failed_videos.append(file.name)
+    
+    # Handle YouTube URL
+    if youtube_url and youtube_url.strip():
+        try:
+            youtube_url = youtube_url.strip()
+            video_id_yt = extract_youtube_id(youtube_url)
+            
+            if video_id_yt:
+                # Check if YouTube video already exists
+                if video_id_yt in existing_youtube_ids:
+                    print(f"YouTube video {video_id_yt} already exists, skipping...")
+                else:
+                    print(f"\n\nProcessing YouTube URL: {youtube_url}\n")
+                    
+                    # Generate unique video ID
+                    video_id = f"video_{len(videos)}"
+                    while video_id in videos:
+                        video_id = f"video_{len(videos) + len(processed_videos) + 1}"
+                    
+                    # Store video data
+                    videos[video_id] = {
+                        "file_name": f"YouTube Video ({video_id_yt})",
+                        "file_path": None,
+                        "video_type": "youtube",
+                        "url": youtube_url,
+                        "youtube_id": video_id_yt
+                    }
+                    
+                    video_order.append(video_id)
+                    processed_videos.append(f"YouTube: {video_id_yt}")
+            else:
+                failed_videos.append("Invalid YouTube URL")
+                
+        except Exception as e:
+            print(f"Error processing YouTube URL: {str(e)}")
+            failed_videos.append("YouTube URL processing failed")
+    
+    # Create system message only if there are changes
+    if chat_history is None:
+        chat_history = []
+    
+    status_messages = []
+    
+    if processed_videos:
+        if len(processed_videos) == 1:
+            status_messages.append(f"🎥 Added video: '{processed_videos[0]}'")
+        else:
+            status_messages.append(f"🎥 Added {len(processed_videos)} videos: {', '.join(processed_videos)}")
+    
+    if failed_videos:
+        status_messages.append(f"❌ Failed to process videos: {', '.join(failed_videos)}")
+    
+    if status_messages:
+        system_message = "\n".join(status_messages) + f"\n\nTotal videos: {len(videos)}. Videos are for viewing only and not included in AI chat context yet."
+        chat_history = chat_history + [{"role": "assistant", "content": system_message}]
+    
+    save_chat_history(chat_history)
+    
+    return chat_history, generate_media_viewer()
+
+def generate_media_viewer():
+    """
+    Generate HTML interface showing all uploaded documents and videos.
+    
+    Returns:
+        HTML string with media list and viewing interface
+    """
+    total_items = len(documents) + len(videos)
+    
+    if total_items == 0:
+        return "<div style='padding: 20px; background-color: black; color: #e0e0e0; border-radius: 8px;'>No documents or videos uploaded yet.</div>"
+    
+    # Create media viewer interface
+    viewer_html = f"""
+    <div style="background-color: black; color: #e0e0e0; padding: 20px; border-radius: 8px; height: 600px; overflow-y: auto;">
+        <h3 style="color: #3498db; margin-bottom: 15px;">Uploaded Media ({total_items} items):</h3>
+    """
+    
+    # Show documents first
+    if documents:
+        viewer_html += f"""
+        <h4 style="color: #2ecc71; margin: 15px 0 10px 0;">📄 Documents ({len(documents)}):</h4>
+        """
+        
+        for i, doc_id in enumerate(document_order):
+            doc_data = documents[doc_id]
+            file_name = doc_data["file_name"]
+            page_count = len(doc_data["ocr_response"].pages)
+            
+            # Create a preview of the content (first 150 characters)
+            content_preview = doc_data["text"][:150] + "..." if len(doc_data["text"]) > 150 else doc_data["text"]
+            
+            viewer_html += f"""
+            <div style="border: 1px solid #444; border-radius: 5px; margin-bottom: 10px; background-color: #1a1a1a;">
+                <div style="padding: 12px; border-bottom: 1px solid #444;">
+                    <h5 style="color: #3498db; margin: 0 0 3px 0;">📄 {file_name}</h5>
+                    <p style="color: #888; margin: 0; font-size: 11px;">{page_count} pages • Preview: {content_preview}</p>
+                </div>
+                <div style="padding: 8px 12px;">
+                    <details>
+                        <summary style="color: #3498db; cursor: pointer; font-size: 12px;">View Full Content</summary>
+                        <div style="margin-top: 8px; max-height: 300px; overflow-y: auto; background-color: #0a0a0a; padding: 8px; border-radius: 3px;">
+                            {markdown_to_html(doc_data["content"]).replace('height: 600px;', 'height: auto;')}
+                        </div>
+                    </details>
+                </div>
+            </div>
+            """
+    
+    # Show videos
+    if videos:
+        viewer_html += f"""
+        <h4 style="color: #e74c3c; margin: 15px 0 10px 0;">🎥 Videos ({len(videos)}):</h4>
+        """
+        
+        for i, video_id in enumerate(video_order):
+            video_data = videos[video_id]
+            file_name = video_data["file_name"]
+            video_type = video_data["video_type"]
+            
+            if video_type == "youtube":
+                youtube_id = video_data["youtube_id"]
+                embed_url = f"https://www.youtube.com/embed/{youtube_id}"
+                viewer_html += f"""
+                <div style="border: 1px solid #444; border-radius: 5px; margin-bottom: 10px; background-color: #1a1a1a;">
+                    <div style="padding: 12px; border-bottom: 1px solid #444;">
+                        <h5 style="color: #e74c3c; margin: 0 0 3px 0;">🎥 {file_name}</h5>
+                        <p style="color: #888; margin: 0; font-size: 11px;">YouTube Video • ID: {youtube_id}</p>
+                    </div>
+                    <div style="padding: 8px 12px;">
+                        <details>
+                            <summary style="color: #e74c3c; cursor: pointer; font-size: 12px;">Watch Video</summary>
+                            <div style="margin-top: 8px;">
+                                <iframe width="100%" height="200" src="{embed_url}" 
+                                        frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowfullscreen style="border-radius: 5px;"></iframe>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+                """
+            
+            else:  # local video
+                # embed the file bytes into a Data URI so the browser can play it directly
+                video_path = video_data["file_path"]
+                file_name  = video_data["file_name"]
+
+                # read & encode
+                with open(video_path, "rb") as vf:
+                    b64 = base64.b64encode(vf.read()).decode("utf-8")
+                data_uri = f"data:video/mp4;base64,{b64}"
+
+                viewer_html += f"""
+                <div style="border:1px solid #444; border-radius:5px; margin-bottom:10px; background:#1a1a1a;">
+                <div style="padding:12px; border-bottom:1px solid #444;">
+                    <h5 style="color:#e74c3c; margin:0 0 3px 0;">🎥 {file_name}</h5>
+                    <p style="color:#888; margin:0; font-size:11px;">Local Video File</p>
+                </div>
+                <div style="padding:8px 12px;">
+                    <details>
+                    <summary style="color:#e74c3c; cursor:pointer; font-size:12px;">Watch Video</summary>
+                    <div style="margin-top:8px;">
+                        <video controls width="100%" preload="metadata" style="border-radius:5px; background:black;">
+                        <source src="{data_uri}" type="video/mp4">
+                        Your browser does not support HTML5 video.
+                        </video>
+                        <p style="color:#666; margin:5px 0 0 0; font-size:10px;">
+                        Note: Video files are kept in memory and accessible during this session.
+                        </p>
+                    </div>
+                    </details>
+                </div>
+                </div>
+                """
+
+
+    
+    viewer_html += """
+        <div style="border-top: 1px solid #444; padding-top: 15px; margin-top: 15px;">
+            <p style="color: #888; font-size: 12px; margin: 0;">
+                💡 Documents are automatically included in AI chat. Video content analysis coming soon!
+            </p>
+        </div>
+    </div>
+    """
+    
+    return viewer_html
+
 def upload_and_process(files, chat_history):
     """
     Smart document management with preserved chronological chat history.
@@ -474,33 +856,30 @@ def upload_and_process(files, chat_history):
     failed_files = []
     removed_files = []
     
-    # Handle document removals (mark as deleted but keep chronological position)
+    # Handle document removals (completely remove documents)
     for file_name_to_remove in files_to_remove:
         doc_ids_to_remove = [doc_id for doc_id in document_order 
                             if documents[doc_id]["file_name"] == file_name_to_remove]
         for doc_id in doc_ids_to_remove:
-            # Update the document block in chat history to show it's deleted
-            if llm_chat_history is not None and doc_id in document_positions:
-                position = document_positions[doc_id]
-                doc_index = document_order.index(doc_id)
-                
-                # Create deleted content block but keep the original filename for reference
-                deleted_content = [{
-                    "type": "text",
-                    "text": f"Document name: {documents[doc_id]['file_name']}.\nNote: User had initially uploaded this document but later removed (deleted) it from the your context manually. You may find some information about this document in the chat history, which is left unchanged, but you do not explicitly have context to this document now, since it is deleted."
-                }]
-                deleted_content_show = deleted_content.copy()
-                
-                # Update the chat history at the stored position
-                if position < len(llm_chat_history):
-                    llm_chat_history[position]["content"] = deleted_content
-                if position < len(llm_chat_history_show):
-                    llm_chat_history_show[position]["content"] = deleted_content_show
-            
+            # Completely remove the document from all data structures
             del documents[doc_id]
             document_order.remove(doc_id)
+            
+            # Remove from position tracking
+            if doc_id in document_positions:
+                del document_positions[doc_id]
+            
             removed_files.append(file_name_to_remove)
-            print(f"Removed document: {file_name_to_remove}")
+            print(f"Completely removed document: {file_name_to_remove}")
+    
+    # If documents were removed, clear the LLM chat history to rebuild it fresh
+    # This ensures no stale references to deleted documents
+    if removed_files and llm_chat_history is not None:
+        llm_chat_history = None
+        llm_chat_history_show = None
+        document_positions.clear()
+        chat_position_counter = 0
+        print("Cleared LLM chat history due to document removal")
     
     # Process only new files
     for file in files_to_add:
@@ -612,7 +991,10 @@ def upload_and_process(files, chat_history):
         # Save existing LLM payload
         save_llm_call_payload(llm_chat_history, llm_chat_history_show)
     
-    return chat_history, generate_document_buttons()
+    # Always save the structured document info when documents change
+    save_docs_structured_info()
+    
+    return chat_history, generate_media_viewer()
 
 # ---------------------------
 # ASR and TTS Functions
@@ -907,17 +1289,29 @@ css = """
 }
 """
 
-with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
+with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
     with gr.Column(elem_classes="container"):
-        gr.Markdown("# Multi-Document PDF Chat Assistant", elem_classes="title")
-        gr.Markdown("Upload multiple PDF files to chat with their contents. Each document will be processed and all content will be available for chatting.")
+        gr.Markdown("# Multi-Media Chat Assistant", elem_classes="title")
+        gr.Markdown("Upload PDF documents and videos to interact with their contents. Documents are processed with OCR and videos are available for viewing.")
         
         with gr.Row():
-            # Left sidebar for PDF viewer
+            # Left sidebar for Media viewer
             with gr.Column(scale=2, elem_classes="sidebar"):
-                gr.Markdown("### PDF Content Viewer")
-                file_input = gr.File(label="Upload PDF", file_types=[".pdf"], file_count="multiple")
-                pdf_viewer = gr.HTML(label="Document Content", value=generate_document_buttons())
+                gr.Markdown("### 📄📹 Media Content Viewer")
+                
+                # Document uploads
+                gr.Markdown("#### Documents")
+                file_input = gr.File(label="Upload PDFs", file_types=[".pdf"], file_count="multiple", height=120)
+                
+                # Video uploads
+                gr.Markdown("#### Videos")
+                video_input = gr.File(label="Upload Videos", file_types=[".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv"], file_count="multiple", height=120)
+                with gr.Row():
+                    youtube_input = gr.Textbox(label="YouTube URL", placeholder="https://youtube.com/watch?v=...", value="", scale=4)
+                    youtube_btn = gr.Button("Add YouTube", elem_classes="button", scale=1, size="lg")
+                
+                # Combined media viewer
+                media_viewer = gr.HTML(label="Media Content", value=generate_media_viewer())
             
             # Right side for chat interface
             with gr.Column(scale=3, elem_classes="chatbox"):
@@ -953,11 +1347,30 @@ with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
                     tts_btn = gr.Button("🔊 Listen to Last Response", elem_classes="button")
                     clear_btn = gr.Button("Clear Chat", elem_classes="button")
         
-        # Set up event handlers
+        # Set up event handlers for documents
         file_input.change(
             fn=upload_and_process,
             inputs=[file_input, chatbot],
-            outputs=[chatbot, pdf_viewer]
+            outputs=[chatbot, media_viewer]
+        )
+        
+        # Set up event handlers for videos
+        video_input.change(
+            fn=process_video_upload,
+            inputs=[video_input, youtube_input, chatbot],
+            outputs=[chatbot, media_viewer]
+        )
+        
+        youtube_input.submit(
+            fn=process_video_upload,
+            inputs=[video_input, youtube_input, chatbot],
+            outputs=[chatbot, media_viewer]
+        )
+        
+        youtube_btn.click(
+            fn=process_video_upload,
+            inputs=[video_input, youtube_input, chatbot],
+            outputs=[chatbot, media_viewer]
         )
         
         # Chain the “add placeholder” (no spinner) → then “stream reply” (spinner+stream)
@@ -1002,6 +1415,7 @@ with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
             # Save cleared state to JSON files
             save_chat_history([])
             save_llm_call_payload([], [])
+            save_docs_structured_info()  # Also update structured document info
             
             return []
 
@@ -1050,8 +1464,8 @@ with gr.Blocks(title="Multi-Document PDF Chat Assistant", css=css) as demo:
     
     # Reset state when interface loads/reloads
     demo.load(
-        fn=lambda: (reset_all_state(), [], generate_document_buttons()),
-        outputs=[chatbot, pdf_viewer],
+        fn=lambda: (reset_all_state() or [], generate_media_viewer()),
+        outputs=[chatbot, media_viewer],
         queue=False
     )
 
