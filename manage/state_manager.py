@@ -2,7 +2,7 @@
 State management module for handling application state.
 """
 import json
-from data_manager import save_chat_history, save_llm_call_payload, save_docs_structured_info, initialize_json_files
+from .data_manager import save_chat_history, save_llm_call_payload, save_docs_structured_info, initialize_json_files
 
 def reset_all_state(documents, document_order, videos, video_order, 
                    llm_chat_history, llm_chat_history_show,
@@ -133,7 +133,7 @@ def stream_assistant_reply(message, chat_history, documents, document_order, llm
     try:
         # Build or retrieve the LLM context messages
         if llm_chat_history is None:
-            from document_utils import create_chat_messages_for_llm
+            from ..utils.document_utils import create_chat_messages_for_llm
             document_messages, document_messages_show, document_positions, chat_position_counter = create_chat_messages_for_llm(
                 documents, document_order, document_positions, chat_position_counter
             )

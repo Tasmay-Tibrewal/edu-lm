@@ -13,15 +13,15 @@ from pathlib import Path
 
 # Import custom modules
 from config import load_env, initialize_api_clients
-from data_manager import (save_llm_call_payload, save_chat_history, 
-                         save_docs_structured_info, initialize_json_files)
-from document_utils import (create_document_content_block, upload_and_process_document,
-                          view_document, create_chat_messages_for_llm)
-from video_utils import process_video_upload
-from audio_utils import process_audio_input, get_last_response_and_convert_to_speech
-from ui_utils import generate_document_buttons, generate_media_viewer
-from state_manager import (reset_all_state, add_user_and_placeholder, 
-                         clear_chat, stream_assistant_reply)
+from manage.data_manager import (save_llm_call_payload, save_chat_history,
+                                save_docs_structured_info, initialize_json_files)
+from utils.document_utils import (create_document_content_block, upload_and_process_document,
+                                 view_document, create_chat_messages_for_llm)
+from utils.video_utils import process_video_upload
+from utils.audio_utils import process_audio_input, get_last_response_and_convert_to_speech
+from utils.ui_utils import generate_document_buttons, generate_media_viewer
+from manage.state_manager import (reset_all_state, add_user_and_placeholder,
+                                 clear_chat, stream_assistant_reply)
 
 # Initialize API clients
 mistral_client, openai_client, groq_client, openai_tts_client, model = initialize_api_clients()
@@ -481,7 +481,7 @@ with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
         )
         
         gr.Examples(
-            examples=["AGV_Task_2023.pdf"],
+            examples=["material/AGV_Task_2023.pdf"],
             inputs=file_input,
         )
     

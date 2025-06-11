@@ -2,6 +2,17 @@
 Data management module for saving and loading data to/from JSON files.
 """
 import json
+import os
+
+# Define JSON folder path (absolute path based on current file location)
+# Get the directory of this file (manage/), then go up one level and into json/
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+JSON_FOLDER = os.path.join(PROJECT_ROOT, "json")
+
+# Ensure json folder exists
+if not os.path.exists(JSON_FOLDER):
+    os.makedirs(JSON_FOLDER)
 
 def save_llm_call_payload(messages, messages_show):
     """
@@ -13,11 +24,11 @@ def save_llm_call_payload(messages, messages_show):
     """
     try:
         # Save full payload
-        with open("llm_structured_call.json", "w", encoding="utf-8") as f:
+        with open(os.path.join(JSON_FOLDER, "llm_structured_call.json"), "w", encoding="utf-8") as f:
             json.dump(messages, f, indent=2, ensure_ascii=False)
         
         # Save show payload
-        with open("llm_structured_call_show.json", "w", encoding="utf-8") as f:
+        with open(os.path.join(JSON_FOLDER, "llm_structured_call_show.json"), "w", encoding="utf-8") as f:
             json.dump(messages_show, f, indent=2, ensure_ascii=False)
         
         print(f"Saved LLM call payload to JSON files ({len(messages)} messages)")
@@ -35,7 +46,7 @@ def save_chat_history(chat_history):
         if chat_history is None:
             chat_history = []
         
-        with open("chat_history_gradio.json", "w", encoding="utf-8") as f:
+        with open(os.path.join(JSON_FOLDER, "chat_history_gradio.json"), "w", encoding="utf-8") as f:
             json.dump(chat_history, f, indent=2, ensure_ascii=False)
         
         print(f"Saved Gradio chat history ({len(chat_history)} messages)")
@@ -141,7 +152,7 @@ def save_docs_structured_info(documents, document_order, structured_docs_cache):
         structured_docs_cache = structured_docs.copy()
         
         # Save to file
-        with open("docs_structured_info.json", "w", encoding="utf-8") as f:
+        with open(os.path.join(JSON_FOLDER, "docs_structured_info.json"), "w", encoding="utf-8") as f:
             json.dump(structured_docs, f, indent=2, ensure_ascii=False)
         
         print(f"Saved structured document info to docs_structured_info.json and updated cache ({len(structured_docs)} documents)")
@@ -157,7 +168,7 @@ def initialize_json_files():
         save_llm_call_payload([], [])
         
         # Initialize the new structured docs file
-        with open("docs_structured_info.json", "w", encoding="utf-8") as f:
+        with open(os.path.join(JSON_FOLDER, "docs_structured_info.json"), "w", encoding="utf-8") as f:
             json.dump([], f, indent=2, ensure_ascii=False)
             
         print("Initialized all JSON files as empty")

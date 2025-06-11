@@ -73,9 +73,9 @@ This application is a sophisticated multi-media chat assistant that combines adv
 - **Auto-play responses**: Automatic audio playback for AI responses
 
 ### 💾 Data Persistence & Export
-- **JSON exports**: Automatic saving of chat history and LLM payloads
-- **Structured document info**: `docs_structured_info.json` with complete document metadata
-- **Video tracking**: `video_structured_info.json` for video metadata (future feature)
+- **JSON exports**: Automatic saving of chat history and LLM payloads to `json/` folder
+- **Structured document info**: `json/docs_structured_info.json` with complete document metadata
+- **Video tracking**: `json/video_structured_info.json` for video metadata (future feature)
 - **Session management**: State preservation across application restarts
 - **Debug capabilities**: Detailed logging and payload inspection
 - **Document deletion handling**: On document removal, the LLM call payload replaces the removed document's content block with a deletion info block and appends an internal deletion notification.
@@ -218,12 +218,12 @@ The application is organized into separate modules for better maintainability an
 | Module | File | Purpose |
 |--------|------|---------|
 | **Configuration** | [`config.py`](config.py:1) | Environment loading and API client initialization |
-| **Data Management** | [`data_manager.py`](data_manager.py:1) | JSON file persistence and data operations |
-| **Document Processing** | [`document_utils.py`](document_utils.py:1) | PDF processing, OCR, and document management |
-| **Video Processing** | [`video_utils.py`](video_utils.py:1) | Video upload and YouTube integration |
-| **Audio Processing** | [`audio_utils.py`](audio_utils.py:1) | Speech-to-text and text-to-speech functionality |
-| **UI Components** | [`ui_utils.py`](ui_utils.py:1) | HTML generation and user interface components |
-| **State Management** | [`state_manager.py`](state_manager.py:1) | Application state and chat history management |
+| **Data Management** | [`manage/data_manager.py`](manage/data_manager.py:1) | JSON file persistence and data operations |
+| **Document Processing** | [`utils/document_utils.py`](utils/document_utils.py:1) | PDF processing, OCR, and document management |
+| **Video Processing** | [`utils/video_utils.py`](utils/video_utils.py:1) | Video upload and YouTube integration |
+| **Audio Processing** | [`utils/audio_utils.py`](utils/audio_utils.py:1) | Speech-to-text and text-to-speech functionality |
+| **UI Components** | [`utils/ui_utils.py`](utils/ui_utils.py:1) | HTML generation and user interface components |
+| **State Management** | [`manage/state_manager.py`](manage/state_manager.py:1) | Application state and chat history management |
 | **Main Application** | [`main.py`](main.py:1) | Gradio UI setup and global variable coordination |
 
 ### Module Dependencies
@@ -231,12 +231,14 @@ The application is organized into separate modules for better maintainability an
 ```
 main.py
 ├── config.py (API clients)
-├── data_manager.py (JSON persistence)
-├── document_utils.py (PDF processing)
-├── video_utils.py (video handling)
-├── audio_utils.py (speech processing)
-├── ui_utils.py (HTML generation)
-└── state_manager.py (chat management)
+├── manage/
+│   ├── data_manager.py (JSON persistence)
+│   └── state_manager.py (chat management)
+└── utils/
+    ├── document_utils.py (PDF processing)
+    ├── video_utils.py (video handling)
+    ├── audio_utils.py (speech processing)
+    └── ui_utils.py (HTML generation)
 ```
 
 ### Key Features of Modular Design
@@ -246,6 +248,7 @@ main.py
 - **Testability**: Modules can be tested independently
 - **Reusability**: Functions can be reused across different parts of the application
 - **Global State Management**: [`main.py`](main.py:1) maintains global variables while modules handle business logic
+- **Organized Structure**: Related modules are grouped into logical folders (`utils/` and `manage/`)
 
 ---
 
@@ -263,55 +266,57 @@ main.py
   - `groq_client` – Whisper ASR via Groq
   - `openai_tts_client` – OpenAI TTS generation
 
-### 2. Data Management Module ([`data_manager.py`](data_manager.py:1))
+### 2. Data Management Module ([`manage/data_manager.py`](manage/data_manager.py:1))
 
 **JSON Persistence & Data Operations**
-- **[`initialize_json_files()`](data_manager.py:6)**: Creates empty JSON files on startup
-- **[`save_chat_history()`](data_manager.py:20)**: Persists Gradio chat history
-- **[`save_llm_call_payload()`](data_manager.py:30)**: Saves LLM conversation payloads
-- **[`save_docs_structured_info()`](data_manager.py:47)**: Exports structured document data
-- **[`generate_docs_structured_info()`](data_manager.py:60)**: Creates structured JSON from document data
+- **[`initialize_json_files()`](manage/data_manager.py:163)**: Creates empty JSON files on startup
+- **[`save_chat_history()`](manage/data_manager.py:37)**: Persists Gradio chat history
+- **[`save_llm_call_payload()`](manage/data_manager.py:16)**: Saves LLM conversation payloads
+- **[`save_docs_structured_info()`](manage/data_manager.py:135)**: Exports structured document data
+- **[`generate_docs_structured_info()`](manage/data_manager.py:55)**: Creates structured JSON from document data
+- **Absolute Path Handling**: Uses `os.path.dirname(os.path.abspath(__file__))` to ensure correct JSON folder access
 
-### 3. Document Processing Module ([`document_utils.py`](document_utils.py:1))
+### 3. Document Processing Module ([`utils/document_utils.py`](utils/document_utils.py:1))
 
 **PDF Processing & OCR Management**
-- **[`upload_and_process_document()`](document_utils.py:145)**: Handles single PDF upload and OCR
-- **[`create_document_content_block()`](document_utils.py:14)**: Generates LLM-compatible content blocks
-- **[`create_chat_messages_for_llm()`](document_utils.py:106)**: Builds complete LLM context
-- **[`view_document()`](document_utils.py:135)**: Handles document viewing functionality
+- **[`upload_and_process_document()`](utils/document_utils.py:145)**: Handles single PDF upload and OCR
+- **[`create_document_content_block()`](utils/document_utils.py:14)**: Generates LLM-compatible content blocks
+- **[`create_chat_messages_for_llm()`](utils/document_utils.py:106)**: Builds complete LLM context
+- **[`view_document()`](utils/document_utils.py:135)**: Handles document viewing functionality
 - **OCR Processing**: Integrates with Mistral OCR for text and image extraction
 
-### 4. Video Processing Module ([`video_utils.py`](video_utils.py:1))
+### 4. Video Processing Module ([`utils/video_utils.py`](utils/video_utils.py:1))
 
 **Video Upload & YouTube Integration**
-- **[`process_video_upload()`](video_utils.py:6)**: Handles local video files and YouTube URLs
-- **[`extract_youtube_id()`](video_utils.py:49)**: Extracts video ID from YouTube URLs
+- **[`process_video_upload()`](utils/video_utils.py:6)**: Handles local video files and YouTube URLs
+- **[`extract_youtube_id()`](utils/video_utils.py:49)**: Extracts video ID from YouTube URLs
 - **Video Storage**: In-memory storage with metadata tracking
 - **Duplicate Prevention**: Avoids re-uploading same videos
 
-### 5. Audio Processing Module ([`audio_utils.py`](audio_utils.py:1))
+### 5. Audio Processing Module ([`utils/audio_utils.py`](utils/audio_utils.py:1))
 
 **Speech Processing & Audio Generation**
-- **[`transcribe_audio()`](audio_utils.py:6)**: Groq Whisper speech-to-text
-- **[`text_to_speech()`](audio_utils.py:38)**: OpenAI TTS text-to-speech
-- **[`process_audio_input()`](audio_utils.py:72)**: Voice input processing
-- **[`get_last_response_and_convert_to_speech()`](audio_utils.py:94)**: TTS for AI responses
+- **[`transcribe_audio()`](utils/audio_utils.py:6)**: Groq Whisper speech-to-text
+- **[`text_to_speech()`](utils/audio_utils.py:38)**: OpenAI TTS text-to-speech
+- **[`process_audio_input()`](utils/audio_utils.py:72)**: Voice input processing
+- **[`get_last_response_and_convert_to_speech()`](utils/audio_utils.py:94)**: TTS for AI responses
 
-### 6. UI Components Module ([`ui_utils.py`](ui_utils.py:1))
+### 6. UI Components Module ([`utils/ui_utils.py`](utils/ui_utils.py:1))
 
 **HTML Generation & Interface Components**
-- **[`generate_document_buttons()`](ui_utils.py:6)**: Creates document navigation HTML
-- **[`generate_media_viewer()`](ui_utils.py:23)**: Unified document and video viewer
+- **[`generate_document_buttons()`](utils/ui_utils.py:6)**: Creates document navigation HTML
+- **[`generate_media_viewer()`](utils/ui_utils.py:23)**: Unified document and video viewer
 - **Responsive Design**: Mobile-friendly HTML components
 - **Interactive Elements**: Expandable content and video players
 
-### 7. State Management Module ([`state_manager.py`](state_manager.py:1))
+### 7. State Management Module ([`manage/state_manager.py`](manage/state_manager.py:1))
 
 **Application State & Chat Management**
-- **[`add_user_and_placeholder()`](state_manager.py:6)**: Adds user message with placeholder
-- **[`stream_assistant_reply()`](state_manager.py:16)**: Handles streaming LLM responses
-- **[`clear_chat()`](state_manager.py:74)**: Clears chat while preserving documents
-- **[`reset_all_state()`](state_manager.py:85)**: Complete application state reset
+- **[`add_user_and_placeholder()`](manage/state_manager.py:49)**: Adds user message with placeholder
+- **[`stream_assistant_reply()`](manage/state_manager.py:100)**: Handles streaming LLM responses
+- **[`clear_chat()`](manage/state_manager.py:75)**: Clears chat while preserving documents
+- **[`reset_all_state()`](manage/state_manager.py:7)**: Complete application state reset
+- **Relative Imports**: Uses proper relative imports (`.data_manager` and `..utils.document_utils`)
 
 ### 8. Main Application ([`main.py`](main.py:1))
 
@@ -325,23 +330,23 @@ main.py
 
 1. **Document Processing Flow**:
    ```
-   PDF Upload → document_utils.py → Mistral OCR → data_manager.py → JSON Storage
+   PDF Upload → utils/document_utils.py → Mistral OCR → manage/data_manager.py → JSON Storage
    ```
 
 2. **Video Processing Flow**:
    ```
-   Video Upload/YouTube → video_utils.py → In-Memory Storage → ui_utils.py → Display
+   Video Upload/YouTube → utils/video_utils.py → In-Memory Storage → utils/ui_utils.py → Display
    ```
 
 3. **Chat Processing Flow**:
    ```
-   User Input → state_manager.py → document_utils.py → Gemini API → Streaming Response
+   User Input → manage/state_manager.py → utils/document_utils.py → Gemini API → Streaming Response
    ```
 
 4. **Audio Processing Flow**:
    ```
-   Audio Input → audio_utils.py → Groq Whisper → Text Input
-   Response Text → audio_utils.py → OpenAI TTS → Audio Output
+   Audio Input → utils/audio_utils.py → Groq Whisper → Text Input
+   Response Text → utils/audio_utils.py → OpenAI TTS → Audio Output
    ```
 
 ---
@@ -351,34 +356,34 @@ main.py
 ### Mistral OCR Service
 - **Purpose**: Extract text and images from PDF documents
 - **Model**: `mistral-ocr-latest`
-- **Module**: [`document_utils.py`](document_utils.py:1)
+- **Module**: [`utils/document_utils.py`](utils/document_utils.py:1)
 - **Output**: Markdown with base64-encoded images
 - **Features**: Multi-page support, image preservation, structured data export
 
 ### Google Gemini (via OpenAI endpoint)
 - **Purpose**: Primary conversational AI
 - **Model**: `gemini-2.5-flash-preview-05-20`
-- **Module**: [`state_manager.py`](state_manager.py:1)
+- **Module**: [`manage/state_manager.py`](manage/state_manager.py:1)
 - **Context**: Up to 2M tokens for large document support
 - **Features**: Streaming responses, multi-modal input, immediate feedback
 
 ### Groq Whisper
 - **Purpose**: Speech recognition
 - **Model**: `whisper-large-v3`
-- **Module**: [`audio_utils.py`](audio_utils.py:1)
+- **Module**: [`utils/audio_utils.py`](utils/audio_utils.py:1)
 - **Input**: Audio files (various formats)
 - **Output**: Transcribed text for chat input
 
 ### OpenAI TTS
 - **Purpose**: Text-to-speech conversion
 - **Model**: `gpt-4o-mini-tts`
-- **Module**: [`audio_utils.py`](audio_utils.py:1)
+- **Module**: [`utils/audio_utils.py`](utils/audio_utils.py:1)
 - **Voice**: Configurable (default: "alloy")
 - **Output**: MP3 audio format with auto-play
 
 ### YouTube Integration
 - **Purpose**: Video embedding and playback
-- **Module**: [`video_utils.py`](video_utils.py:1)
+- **Module**: [`utils/video_utils.py`](utils/video_utils.py:1)
 - **Method**: Direct URL parsing and iframe embedding
 - **Features**: Automatic video ID extraction, duplicate prevention
 
@@ -390,47 +395,54 @@ main.py
 project/
 ├── main.py                          # Main application with Gradio UI
 ├── config.py                        # Environment and API client configuration
-├── data_manager.py                  # JSON persistence and data operations
-├── document_utils.py                # PDF processing and OCR functionality
-├── video_utils.py                   # Video upload and YouTube integration
-├── audio_utils.py                   # Speech-to-text and text-to-speech
-├── ui_utils.py                      # HTML generation and UI components
-├── state_manager.py                 # Application state and chat management
 ├── .env                            # Environment variables (create this)
 ├── readme.md                       # This documentation
 ├── requirements.txt                # Python dependencies (create this)
-├── chat_history_gradio.json       # Auto-generated chat history
-├── llm_structured_call.json       # Auto-generated LLM payloads
-├── llm_structured_call_show.json  # Auto-generated LLM payloads (truncated)
-├── docs_structured_info.json      # Auto-generated structured document data
-├── video_structured_info.json     # Auto-generated video metadata (future)
-├── doc_json_info_schema.json      # Document data schema (if present)
-├── video_json_info_schema.json    # Video data schema (if present)
-└── [uploaded_files.pdf]           # Your uploaded PDF documents
+├── utils/                          # Utility modules folder
+│   ├── __init__.py                     # Package initialization
+│   ├── document_utils.py               # PDF processing and OCR functionality
+│   ├── video_utils.py                  # Video upload and YouTube integration
+│   ├── audio_utils.py                  # Speech-to-text and text-to-speech
+│   └── ui_utils.py                     # HTML generation and UI components
+├── manage/                         # Management modules folder
+│   ├── __init__.py                     # Package initialization
+│   ├── data_manager.py                 # JSON persistence and data operations
+│   └── state_manager.py                # Application state and chat management
+├── json/                           # JSON data folder
+│   ├── chat_history_gradio.json       # Auto-generated chat history
+│   ├── llm_structured_call.json       # Auto-generated LLM payloads
+│   ├── llm_structured_call_show.json  # Auto-generated LLM payloads (truncated)
+│   ├── docs_structured_info.json      # Auto-generated structured document data
+│   ├── video_structured_info.json     # Auto-generated video metadata (future)
+│   ├── doc_json_info_schema.json      # Document data schema (if present)
+│   └── video_json_info_schema.json    # Video data schema (if present)
+├── material/                       # Sample materials folder
+│   └── AGV_Task_2023.pdf              # Sample PDF document
+└── [uploaded_files.pdf]           # Your uploaded PDF documents (temporary)
 ```
 
 ### Auto-generated Files
 
-The application automatically creates and maintains several JSON files:
+The application automatically creates and maintains several JSON files in the `json/` folder:
 
-- **`chat_history_gradio.json`**: Stores the Gradio chat interface history
-- **`llm_structured_call.json`**: Complete LLM conversation payloads
-- **`llm_structured_call_show.json`**: Truncated payloads for debugging
-- **`docs_structured_info.json`**: Structured document information with content and metadata
-- **`video_structured_info.json`**: Video metadata and information (future feature)
+- **`json/chat_history_gradio.json`**: Stores the Gradio chat interface history
+- **`json/llm_structured_call.json`**: Complete LLM conversation payloads
+- **`json/llm_structured_call_show.json`**: Truncated payloads for debugging
+- **`json/docs_structured_info.json`**: Structured document information with content and metadata
+- **`json/video_structured_info.json`**: Video metadata and information (future feature)
 
 ### Module Organization
 
 Each module is self-contained with specific responsibilities:
 
 - **[`config.py`](config.py:1)**: Centralized configuration management
-- **[`data_manager.py`](data_manager.py:1)**: All JSON operations and data persistence
-- **[`document_utils.py`](document_utils.py:1)**: Complete PDF processing pipeline
-- **[`video_utils.py`](video_utils.py:1)**: Video handling and YouTube integration
-- **[`audio_utils.py`](audio_utils.py:1)**: Audio processing and speech services
-- **[`ui_utils.py`](ui_utils.py:1)**: HTML generation and UI components
-- **[`state_manager.py`](state_manager.py:1)**: Chat state and conversation management
-- **[`main.py`](main.py:1)**: Global state coordination and Gradio interface
+- **[`manage/data_manager.py`](manage/data_manager.py:1)**: All JSON operations and data persistence (uses absolute paths to json/ folder)
+- **[`utils/document_utils.py`](utils/document_utils.py:1)**: Complete PDF processing pipeline
+- **[`utils/video_utils.py`](utils/video_utils.py:1)**: Video handling and YouTube integration
+- **[`utils/audio_utils.py`](utils/audio_utils.py:1)**: Audio processing and speech services
+- **[`utils/ui_utils.py`](utils/ui_utils.py:1)**: HTML generation and UI components
+- **[`manage/state_manager.py`](manage/state_manager.py:1)**: Chat state and conversation management
+- **[`main.py`](main.py:1)**: Global state coordination and Gradio interface (uses `material/` for examples)
 
 ---
 
@@ -466,9 +478,15 @@ Each module is self-contained with specific responsibilities:
    - Monitor browser console for WebSocket errors
 
 6. **Module Import Errors**
-   - Ensure all module files are in the same directory as [`main.py`](main.py:1)
+   - Ensure all module files are in their respective folders (`utils/` and `manage/`)
    - Check for syntax errors in individual modules
    - Verify Python path and module accessibility
+   - Ensure `__init__.py` files exist in utils/ and manage/ folders
+
+7. **JSON File Path Issues**
+   - The data_manager.py uses absolute paths to ensure reliable JSON file access
+   - If JSON files aren't being created, check file permissions in the json/ folder
+   - Verify the json/ folder exists and is writable
 
 ### Performance Tips
 
@@ -538,6 +556,14 @@ When creating new modules or modifying existing ones:
 5. **Testing**: Test modules independently when possible
 6. **Global State**: Avoid direct global variable access; use parameters instead
 
+### Folder Organization
+
+- **`utils/`**: Contains all utility modules for specific functionality (document, video, audio, UI processing)
+- **`manage/`**: Contains management modules for state and data persistence
+- **`json/`**: Contains all automatically generated JSON files for data persistence
+- **`material/`**: Contains sample materials and example documents
+- **Root directory**: Contains main application file, configuration, and documentation
+
 ---
 
 ## License
@@ -568,4 +594,4 @@ This application integrates with several third-party services. Please review the
 
 ---
 
-*Last updated: June 2025 - Refactored to modular architecture*
+*Last updated: December 2025 - Refactored to modular architecture with organized folder structure*
