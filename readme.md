@@ -1,6 +1,6 @@
-# Multi-Document PDF Chat Assistant
+# Multi-Media Chat Assistant
 
-**An advanced AI-powered document analysis and conversational interface**
+**An advanced AI-powered document and video analysis conversational interface**
 
 ---
 
@@ -22,17 +22,19 @@
 
 ## Overview
 
-This application is a sophisticated multi-document PDF chat assistant that combines advanced OCR, AI language models, and audio processing capabilities. Built with Gradio, it provides an intuitive interface for uploading, processing, and conversing with multiple PDF documents simultaneously.
+This application is a sophisticated multi-media chat assistant that combines advanced OCR, AI language models, video processing, and audio capabilities. Built with Gradio, it provides an intuitive interface for uploading, processing, and conversing with multiple PDF documents and videos simultaneously.
 
 ### Key Capabilities
 
 - **Multi-document support**: Upload and manage multiple PDF files simultaneously
+- **Video integration**: Support for local video files and YouTube videos with embedded viewing
 - **Advanced OCR**: Extract text and images from PDFs using Mistral's OCR service
 - **AI-powered chat**: Conversation with document content using Gemini 2.5 Flash
 - **Voice interaction**: Speech-to-text input and text-to-speech output
 - **Real-time streaming**: Token-by-token response streaming for immediate feedback
 - **Persistent state**: Maintains chat history and document context across sessions
-- **Visual document preview**: Side-by-side document viewer with chat interface
+- **Unified media viewer**: Side-by-side document and video viewer with chat interface
+- **Structured data export**: Automatic generation of structured JSON data for documents and videos
 
 ---
 
@@ -44,21 +46,33 @@ This application is a sophisticated multi-document PDF chat assistant that combi
 - **Dynamic file management**: Add/remove documents without losing chat history
 - **Visual content preview**: Expandable document viewer with formatted content
 - **OCR with image preservation**: Extract text while maintaining embedded images
+- **Structured document data**: Auto-generated JSON schemas for document content
+
+### 🎥 Video Support
+- **Local video files**: Upload and view multiple video formats (MP4, AVI, MOV, WMV, FLV, WebM, MKV)
+- **YouTube integration**: Add YouTube videos via URL with embedded player
+- **In-memory processing**: Videos stored in memory for session-based access
+- **Combined media viewer**: Unified interface for documents and videos
+- **Video metadata tracking**: Organized video information with structured data export
 
 ### 💬 Conversational AI
-- **Context-aware responses**: AI understands all uploaded documents simultaneously
+- **Context-aware responses**: AI understands all uploaded document content simultaneously
 - **Streaming responses**: Real-time token-by-token response generation
 - **Persistent chat history**: Maintains conversation context across sessions
 - **Smart prompting**: Optimized message structure for multi-document queries
+- **Enhanced user experience**: Immediate placeholder display with streaming updates
 
 ### 🎤 Audio Features
 - **Speech-to-text**: Voice input using Groq's Whisper-large-v3 model
 - **Text-to-speech**: AI response audio using OpenAI's TTS models
 - **Real-time transcription**: Instant audio processing and text insertion
 - **Configurable voices**: Multiple voice options for audio output
+- **Auto-play responses**: Automatic audio playback for AI responses
 
-### 💾 Data Persistence
+### 💾 Data Persistence & Export
 - **JSON exports**: Automatic saving of chat history and LLM payloads
+- **Structured document info**: `docs_structured_info.json` with complete document metadata
+- **Video tracking**: `video_structured_info.json` for video metadata (future feature)
 - **Session management**: State preservation across application restarts
 - **Debug capabilities**: Detailed logging and payload inspection
 
@@ -80,7 +94,7 @@ This application is a sophisticated multi-document PDF chat assistant that combi
 
 2. **Install dependencies**
    ```bash
-   pip install gradio python-dotenv mistralai google-generativeai openai markdown pathlib IPython
+   pip install gradio python-dotenv mistralai google-generativeai openai markdown pathlib IPython base64 re shutil json
    ```
 
 3. **Set up environment variables**
@@ -134,30 +148,39 @@ The application uses the following models (configurable in `main.py`):
 
 ### Uploading Documents
 
-1. **Single or Multiple Files**: Use the file upload area to select one or more PDF files
+1. **Single or Multiple Files**: Use the PDF upload area to select one or more PDF files
 2. **Drag and Drop**: Drag PDF files directly onto the upload area
 3. **Document Management**: Files can be added or removed dynamically
 4. **Preview Content**: Expand document sections to view full content with images
+
+### Adding Videos
+
+1. **Local Video Files**: Upload video files in supported formats (MP4, AVI, MOV, etc.)
+2. **YouTube Videos**: Paste YouTube URLs and click "Add YouTube" button
+3. **Video Viewing**: Videos are embedded in the media viewer for instant playback
+4. **Duplicate Prevention**: System prevents uploading duplicate videos
 
 ### Chatting with Documents
 
 1. **Text Input**: Type questions in the text box and press Enter or click Send
 2. **Voice Input**: Click the microphone button to record voice questions
 3. **Context Awareness**: The AI has access to all uploaded document content
-4. **Streaming Responses**: Watch responses appear in real-time
+4. **Streaming Responses**: Watch responses appear in real-time with immediate placeholder display
 
 ### Audio Features
 
-1. **Voice Questions**: Record audio that gets automatically transcribed
+1. **Voice Questions**: Record audio that gets automatically transcribed to text input
 2. **Listen to Responses**: Click "🔊 Listen to Last Response" for audio playback
 3. **Auto-play**: Audio responses play automatically when generated
+4. **Voice Input Integration**: Microphone input populates text box without auto-sending
 
-### Document Viewing
+### Media Viewing
 
-1. **Side Panel**: View all uploaded documents in the left panel
+1. **Unified Media Panel**: View all uploaded documents and videos in the left panel
 2. **Expandable Content**: Click "View Full Content" to see detailed document content
-3. **Image Support**: View embedded images from PDF documents
-4. **Navigation**: Easily switch between different document sections
+3. **Video Playback**: Watch YouTube videos or local videos directly in the interface
+4. **Image Support**: View embedded images from PDF documents
+5. **Organized Display**: Clear separation between documents and videos with item counts
 
 ---
 
@@ -170,9 +193,10 @@ The application uses the following models (configurable in `main.py`):
 │   Gradio UI     │◄──►│   Application    │◄──►│   External APIs │
 │                 │    │     Logic        │    │                 │
 │ • File Upload   │    │                  │    │ • Mistral OCR   │
-│ • Chat Interface│    │ • Document Mgmt  │    │ • Gemini LLM    │
-│ • Audio I/O     │    │ • State Mgmt     │    │ • Groq ASR      │
-│ • Document View │    │ • Stream Handling│    │ • OpenAI TTS    │
+│ • Video Upload  │    │ • Document Mgmt  │    │ • Gemini LLM    │
+│ • Chat Interface│    │ • Video Mgmt     │    │ • Groq ASR      │
+│ • Audio I/O     │    │ • State Mgmt     │    │ • OpenAI TTS    │
+│ • Media Viewer  │    │ • Stream Handling│    │ • YouTube API   │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
@@ -180,15 +204,20 @@ The application uses the following models (configurable in `main.py`):
 
 1. **Document Processing**:
    ```
-   PDF Upload → Mistral OCR → Markdown + Images → Document Store
+   PDF Upload → Mistral OCR → Markdown + Images → Document Store → Structured JSON
    ```
 
-2. **Chat Processing**:
+2. **Video Processing**:
    ```
-   User Input → Context Building → Gemini API → Streaming Response
+   Video Upload/YouTube URL → Video Store → Media Viewer → Structured Data
    ```
 
-3. **Audio Processing**:
+3. **Chat Processing**:
+   ```
+   User Input → Context Building → Gemini API → Streaming Response → Audio Output
+   ```
+
+4. **Audio Processing**:
    ```
    Audio Input → Groq Whisper → Text Input
    Response Text → OpenAI TTS → Audio Output
@@ -199,8 +228,12 @@ The application uses the following models (configurable in `main.py`):
 | Component | Responsibility |
 |-----------|----------------|
 | `upload_and_process()` | PDF upload and OCR processing |
+| `process_video_upload()` | Video file and YouTube URL processing |
 | `stream_assistant_reply()` | AI response generation with streaming |
+| `add_user_and_placeholder()` | Immediate UI feedback for user queries |
 | `create_chat_messages_for_llm()` | Context preparation for AI model |
+| `generate_media_viewer()` | Unified document and video interface |
+| `generate_docs_structured_info()` | Structured document data generation |
 | `transcribe_audio()` | Speech-to-text conversion |
 | `text_to_speech()` | Text-to-speech generation |
 | `save_*_payload()` | Data persistence functions |
@@ -213,25 +246,30 @@ The application uses the following models (configurable in `main.py`):
 - **Purpose**: Extract text and images from PDF documents
 - **Model**: `mistral-ocr-latest`
 - **Output**: Markdown with base64-encoded images
-- **Features**: Multi-page support, image preservation
+- **Features**: Multi-page support, image preservation, structured data export
 
 ### Google Gemini (via OpenAI endpoint)
 - **Purpose**: Primary conversational AI
 - **Model**: `gemini-2.5-flash-preview-05-20`
 - **Context**: Up to 2M tokens for large document support
-- **Features**: Streaming responses, multi-modal input
+- **Features**: Streaming responses, multi-modal input, immediate feedback
 
 ### Groq Whisper
 - **Purpose**: Speech recognition
 - **Model**: `whisper-large-v3`
 - **Input**: Audio files (various formats)
-- **Output**: Transcribed text
+- **Output**: Transcribed text for chat input
 
 ### OpenAI TTS
 - **Purpose**: Text-to-speech conversion
 - **Model**: `gpt-4o-mini-tts`
 - **Voice**: Configurable (default: "alloy")
-- **Output**: MP3 audio format
+- **Output**: MP3 audio format with auto-play
+
+### YouTube Integration
+- **Purpose**: Video embedding and playback
+- **Method**: Direct URL parsing and iframe embedding
+- **Features**: Automatic video ID extraction, duplicate prevention
 
 ---
 
@@ -246,6 +284,10 @@ project/
 ├── chat_history_gradio.json       # Auto-generated chat history
 ├── llm_structured_call.json       # Auto-generated LLM payloads
 ├── llm_structured_call_show.json  # Auto-generated LLM payloads (truncated)
+├── docs_structured_info.json      # Auto-generated structured document data
+├── video_structured_info.json     # Auto-generated video metadata (future)
+├── doc_json_info_schema.json      # Document data schema (if present)
+├── video_json_info_schema.json    # Video data schema (if present)
 └── [uploaded_files.pdf]           # Your uploaded PDF documents
 ```
 
@@ -256,6 +298,16 @@ The application automatically creates and maintains several JSON files:
 - **`chat_history_gradio.json`**: Stores the Gradio chat interface history
 - **`llm_structured_call.json`**: Complete LLM conversation payloads
 - **`llm_structured_call_show.json`**: Truncated payloads for debugging
+- **`docs_structured_info.json`**: Structured document information with content and metadata
+- **`video_structured_info.json`**: Video metadata and information (future feature)
+
+### Structured Data Schema
+
+The `docs_structured_info.json` follows a specific schema with:
+- Document metadata (name, ID, availability status)
+- Page-by-page content with markdown and images
+- Image tags with base64 data for AI processing
+- Hierarchical organization for multi-document support
 
 ---
 
@@ -275,12 +327,17 @@ The application automatically creates and maintains several JSON files:
    ```
    **Solution**: Check PDF file integrity and Mistral API connectivity
 
-3. **Audio Not Working**
+3. **Video Upload Issues**
+   - Check supported video formats (MP4, AVI, MOV, WMV, FLV, WebM, MKV)
+   - Verify YouTube URL format and accessibility
+   - Ensure sufficient memory for large video files
+
+4. **Audio Not Working**
    - Ensure microphone permissions are granted
    - Check audio file formats and browser compatibility
    - Verify Groq and OpenAI API keys for ASR/TTS
 
-4. **Streaming Issues**
+5. **Streaming Issues**
    - Check internet connectivity
    - Verify Gemini API access and quotas
    - Monitor browser console for WebSocket errors
@@ -288,34 +345,40 @@ The application automatically creates and maintains several JSON files:
 ### Performance Tips
 
 1. **Large Documents**: The application handles large PDFs but may be slower with very large files
-2. **Memory Usage**: Multiple large documents may consume significant memory
+2. **Memory Usage**: Multiple large documents and videos may consume significant memory
 3. **API Limits**: Monitor your API usage across all services
-4. **Browser Performance**: Use modern browsers for best streaming experience
+4. **Browser Performance**: Use modern browsers for best streaming and video experience
+5. **Video Storage**: Videos are kept in memory during session - restart app to free memory
 
 ### Debug Mode
 
-Enable detailed logging by checking the console output when running `python main.py`. The application provides extensive logging for debugging purposes.
+Enable detailed logging by checking the console output when running `python main.py`. The application provides extensive logging for debugging purposes, including:
+- Document processing status
+- Video upload confirmations
+- API call details
+- Structured data generation logs
 
 ---
 
 ## Contributing
 
-We welcome contributions to improve this multi-document PDF chat assistant!
+We welcome contributions to improve this multi-media chat assistant!
 
 ### How to Contribute
 
 1. **Fork the repository**
 2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
 3. **Make your changes** with clear, documented code
-4. **Test thoroughly** with various PDF types and use cases
+4. **Test thoroughly** with various PDF types, video formats, and use cases
 5. **Submit a pull request** with detailed description
 
 ### Areas for Contribution
 
-- **UI/UX improvements**: Enhanced document viewer, better mobile support
+- **Video Analysis**: Implement AI-powered video content analysis
+- **UI/UX improvements**: Enhanced media viewer, better mobile support
 - **Performance optimization**: Faster document processing, memory efficiency
-- **Additional models**: Support for other LLM providers or OCR services
-- **Export features**: PDF generation, conversation exports
+- **Additional formats**: Support for more document and video types
+- **Export features**: PDF generation, conversation exports, media downloads
 - **Security enhancements**: Input validation, API key management
 - **Testing**: Unit tests, integration tests, performance benchmarks
 
@@ -324,8 +387,9 @@ We welcome contributions to improve this multi-document PDF chat assistant!
 - Follow Python PEP 8 style guidelines
 - Add docstrings for all functions
 - Handle errors gracefully with user-friendly messages
-- Test with various PDF types and sizes
+- Test with various PDF types, video formats, and sizes
 - Document any new dependencies or configuration options
+- Ensure video processing maintains memory efficiency
 
 ---
 
@@ -341,6 +405,7 @@ This application integrates with several third-party services. Please review the
 - [Mistral AI Terms](https://mistral.ai/terms/)
 - [Groq Terms](https://groq.com/terms-of-service/)
 - [OpenAI Terms](https://openai.com/terms/)
+- [YouTube Terms of Service](https://www.youtube.com/t/terms)
 
 ---
 
@@ -351,6 +416,7 @@ This application integrates with several third-party services. Please review the
 - **Google** for the powerful Gemini language model
 - **Groq** for fast Whisper inference
 - **OpenAI** for high-quality text-to-speech
+- **YouTube** for video embedding capabilities
 
 ---
 
