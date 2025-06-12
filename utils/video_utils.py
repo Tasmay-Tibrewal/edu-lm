@@ -3,7 +3,10 @@ Video utilities module for processing video files and YouTube URLs.
 """
 import re
 import base64
+import asyncio
 from pathlib import Path
+from utils.video_description import generate_new_video_descriptions
+from manage.data_manager import save_video_structured_info
 
 def extract_youtube_id(url):
     """
@@ -33,10 +36,11 @@ def is_youtube_url(url):
     """
     return extract_youtube_id(url) is not None
 
-def process_video_upload(files, youtube_url, chat_history, videos, video_order):
+def process_video_upload(files, youtube_url, chat_history, videos, video_order, genai_client=None, structured_videos_cache=None):
     """
     Process video uploads (both file uploads and YouTube URLs).
     Keeps videos in memory without saving to disk.
+    Automatically generates video descriptions upon upload.
     
     Args:
         files: List of uploaded video files
@@ -44,9 +48,11 @@ def process_video_upload(files, youtube_url, chat_history, videos, video_order):
         chat_history: Current chat history
         videos: Dictionary of video data
         video_order: List of video IDs in order
+        genai_client: Google GenAI client for description generation
+        structured_videos_cache: In-memory cache for structured video information
         
     Returns:
-        Tuple of (updated chat history, processed_videos, failed_videos)
+        Tuple of (updated chat history, processed_videos, failed_videos, updated_structured_videos_cache)
     """
     processed_videos = []
     failed_videos = []
@@ -154,7 +160,176 @@ def process_video_upload(files, youtube_url, chat_history, videos, video_order):
         status_messages.append(f"❌ Failed to process videos: {', '.join(failed_videos)}")
     
     if status_messages:
-        system_message = "\n".join(status_messages) + f"\n\nTotal videos: {len(videos)}. Videos are for viewing only and not included in AI chat context yet."
+        system_message = "\n".join(status_messages) + f"\n\nTotal videos: {len(videos)}."
         chat_history = chat_history + [{"role": "assistant", "content": system_message}]
     
-    return chat_history, processed_videos, failed_videos
+    # Automatically generate descriptions for newly uploaded videos only
+    updated_structured_videos_cache = structured_videos_cache if structured_videos_cache is not None else []
+    
+    if processed_videos and genai_client is not None:
+        try:
+            # Add a status message about description generation
+            description_message = "🤖 Generating AI descriptions for new videos... This may take a few minutes."
+            chat_history = chat_history + [{"role": "assistant", "content": description_message}]
+            
+            print("🤖 Starting automatic video description generation for new videos...")
+            
+            # Get existing video IDs from cache
+            existing_video_ids = set()
+            for cached_video in updated_structured_videos_cache:
+                if 'video_id' in cached_video:
+                    existing_video_ids.add(f"video_{cached_video['video_id']}")
+            
+            # Generate descriptions only for new videos using sync wrapper
+            new_descriptions = generate_new_video_descriptions_sync(
+                genai_client, videos, video_order, existing_video_ids
+            )
+            
+            if new_descriptions:
+                # Combine with existing cache
+                updated_structured_videos_cache.extend(new_descriptions)
+                # Save to file
+                updated_structured_videos_cache = save_video_structured_info(updated_structured_videos_cache, updated_structured_videos_cache)
+                
+                # Update status with completion
+                completion_message = f"✅ Video descriptions generated successfully! Processed {len(new_descriptions)} new videos with AI analysis."
+                chat_history = chat_history + [{"role": "assistant", "content": completion_message}]
+            else:
+                info_message = "ℹ️ No new videos to process for descriptions."
+                chat_history = chat_history + [{"role": "assistant", "content": info_message}]
+            
+        except Exception as e:
+            error_message = f"❌ Error generating video descriptions: {str(e)}"
+            print(error_message)
+            chat_history = chat_history + [{"role": "assistant", "content": error_message}]
+    
+    return chat_history, processed_videos, failed_videos, updated_structured_videos_cache
+
+async def generate_new_video_descriptions_async(genai_client, videos, video_order, existing_video_ids):
+    """
+    Generate video descriptions asynchronously for new videos only.
+    
+    Args:
+        genai_client: The Google GenAI client
+        videos: Dictionary of video data
+        video_order: List of video IDs in order
+        existing_video_ids: Set of video IDs that already have descriptions
+        
+    Returns:
+        List of new video descriptions
+    """
+    try:
+        if not videos or not video_order:
+            print("No videos to process for descriptions")
+            return []
+        
+        print(f"Starting video description generation for new videos...")
+        
+        # Import the function from video_description module
+        from utils.video_description import generate_new_video_descriptions
+        
+        # Generate descriptions for new videos only
+        video_descriptions = await generate_new_video_descriptions(genai_client, videos, video_order, existing_video_ids)
+        
+        return video_descriptions
+        
+    except Exception as e:
+        print(f"Error generating video descriptions: {e}")
+        return []
+
+async def generate_video_descriptions_async(genai_client, videos, video_order, structured_videos_cache):
+    """
+    Generate video descriptions asynchronously for all videos.
+    
+    Args:
+        genai_client: The Google GenAI client
+        videos: Dictionary of video data
+        video_order: List of video IDs in order
+        structured_videos_cache: In-memory cache for structured video information
+        
+    Returns:
+        Updated structured_videos_cache
+    """
+    try:
+        if not videos or not video_order:
+            print("No videos to process for descriptions")
+            return structured_videos_cache
+        
+        print(f"Starting video description generation for {len(video_order)} videos...")
+        
+        # Generate descriptions for all videos
+        from utils.video_description import generate_all_video_descriptions
+        video_descriptions = await generate_all_video_descriptions(genai_client, videos, video_order)
+        
+        # Save to file and update cache
+        structured_videos_cache = save_video_structured_info(video_descriptions, structured_videos_cache)
+        
+        return structured_videos_cache
+        
+    except Exception as e:
+        print(f"Error generating video descriptions: {e}")
+        return structured_videos_cache
+
+def generate_new_video_descriptions_sync(genai_client, videos, video_order, existing_video_ids):
+    """
+    Synchronous wrapper for generating descriptions for new videos only.
+    
+    Args:
+        genai_client: The Google GenAI client
+        videos: Dictionary of video data
+        video_order: List of video IDs in order
+        existing_video_ids: Set of video IDs that already have descriptions
+        
+    Returns:
+        List of new video descriptions
+    """
+    try:
+        # Create new event loop if one doesn't exist
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("Event loop is closed")
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Run the async function
+        return loop.run_until_complete(
+            generate_new_video_descriptions_async(genai_client, videos, video_order, existing_video_ids)
+        )
+        
+    except Exception as e:
+        print(f"Error in synchronous video description generation: {e}")
+        return []
+
+def generate_video_descriptions_sync(genai_client, videos, video_order, structured_videos_cache):
+    """
+    Synchronous wrapper for generating video descriptions.
+    
+    Args:
+        genai_client: The Google GenAI client
+        videos: Dictionary of video data
+        video_order: List of video IDs in order
+        structured_videos_cache: In-memory cache for structured video information
+        
+    Returns:
+        Updated structured_videos_cache
+    """
+    try:
+        # Create new event loop if one doesn't exist
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("Event loop is closed")
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Run the async function
+        return loop.run_until_complete(
+            generate_video_descriptions_async(genai_client, videos, video_order, structured_videos_cache)
+        )
+        
+    except Exception as e:
+        print(f"Error in synchronous video description generation: {e}")
+        return structured_videos_cache

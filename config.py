@@ -6,6 +6,8 @@ import os
 from mistralai import Mistral
 from openai import OpenAI
 import google.generativeai as genai
+from google import genai as google_genai
+from google.genai import types
 
 def load_env(filename=".env"):
     """
@@ -26,7 +28,7 @@ def initialize_api_clients():
     Initialize API clients for various services.
     
     Returns:
-        Tuple of (mistral_client, openai_client, groq_client, openai_tts_client, model)
+        Tuple of (mistral_client, openai_client, groq_client, openai_tts_client, model, genai_client)
     """
     # Load environment variables
     load_env()
@@ -69,4 +71,7 @@ def initialize_api_clients():
     genai.configure(api_key=gemini_api_key)
     model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
     
-    return mistral_client, openai_client, groq_client, openai_tts_client, model
+    # Initialize Google Genai client for video processing
+    genai_client = google_genai.Client(api_key=gemini_api_key)
+    
+    return mistral_client, openai_client, groq_client, openai_tts_client, model, genai_client

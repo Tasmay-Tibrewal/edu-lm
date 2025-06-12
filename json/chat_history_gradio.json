@@ -1,68 +1,14 @@
 [
   {
     "role": "assistant",
-    "metadata": null,
-    "content": "✅ Added: 'dream_product_swiggy.pdf'\n\nTotal documents: 1. Chat history preserved.",
-    "options": null
-  },
-  {
-    "role": "user",
-    "metadata": null,
-    "content": "hi",
-    "options": null
+    "content": "🎥 Added video: '5 ways to shoot yourself in the foot with C - Fireship 720p, h264.mp4'\n\nTotal videos: 1."
   },
   {
     "role": "assistant",
-    "metadata": null,
-    "content": "Hello! I'm here to help you understand the document titled \"dream_product_swiggy.pdf\".\n\nThis document describes a concept for a \"Dream Personal Product\" called the **Cognitive Synthesis Lab (CSL)**. It's envisioned as a foundational research platform for developing advanced artificial reasoning capabilities.\n\nWould you like to know more about:\n*   What the CSL is designed to do?\n*   Who would use the CSL?\n*   The thinking behind its design?\n*   Or anything else about the document?",
-    "options": null
+    "content": "🤖 Generating AI descriptions for new videos... This may take a few minutes."
   },
   {
     "role": "assistant",
-    "metadata": null,
-    "content": "🎥 Added video: 'YouTube: zuZ2zaotrJs'\n\nTotal videos: 1. Videos are for viewing only and not included in AI chat context yet.",
-    "options": null
-  },
-  {
-    "role": "assistant",
-    "metadata": null,
-    "content": "🎥 Added video: '5 ways to shoot yourself in the foot with C - Fireship 720p, h264.mp4'\n\nTotal videos: 2. Videos are for viewing only and not included in AI chat context yet.",
-    "options": null
-  },
-  {
-    "role": "assistant",
-    "metadata": null,
-    "content": "✅ Added: 'Tasmay_P_Tibrewal_CV_Final_1.1 1.pdf'\n\nTotal documents: 2. Chat history preserved.",
-    "options": null
-  },
-  {
-    "role": "user",
-    "metadata": null,
-    "content": "🎤  Which documents do you have access to and can you explain them please?",
-    "options": null
-  },
-  {
-    "role": "assistant",
-    "metadata": null,
-    "content": "I have access to the following two documents:\n\n1.  **`dream_product_swiggy.pdf`**: This document outlines the concept of a \"Dream Personal Product\" called the **Cognitive Synthesis Lab (CSL)**. It's envisioned as a foundational research platform designed to systematically investigate, generate, and evaluate advanced artificial reasoning capabilities. The document details its focus on automated architectural discovery and the synthesis/orchestration of diverse reasoning strategies, intended for AI researchers, developers, and for the system's own continuous improvement.\n\n2.  **`Tasmay_P_Tibrewal_CV_Final_1.1 1.pdf`**: This document is the Curriculum Vitae (CV) of **Tasmay Pankaj Tibrewal**. It highlights their research work (e.g., LLMs for Hardware Design, custom tokenization algorithms), achievements in various AI/ML competitions (e.g., Sarvam AI, Inter IIT Technology Meet), professional internships (e.g., WorldQuant, Ernst & Young, Tata Steel), and other experiences including founding a B2B AI SaaS platform (Zyke) and notable academic achievements.",
-    "options": null
-  },
-  {
-    "role": "assistant",
-    "metadata": null,
-    "content": "🗑️ Removed: 'Tasmay_P_Tibrewal_CV_Final_1.1 1.pdf'\n\nTotal documents: 1. Chat history preserved.",
-    "options": null
-  },
-  {
-    "role": "user",
-    "metadata": null,
-    "content": "now?",
-    "options": null
-  },
-  {
-    "role": "assistant",
-    "metadata": null,
-    "content": "Okay, understood. Thank you for the clarification.\n\nAs of now, I only have access to the following document:\n\n1.  **`dream_product_swiggy.pdf`**: This document outlines the concept of a \"Dream Personal Product\" called the **Cognitive Synthesis Lab (CSL)**. It's envisioned as a foundational research platform designed to systematically investigate, generate, and evaluate advanced artificial reasoning capabilities. The document details its focus on automated architectural discovery and the synthesis/orchestration of diverse reasoning strategies, intended for AI researchers, developers, and for the system's own continuous improvement.",
-    "options": null
+    "content": "ℹ️ No new videos to process for descriptions."
   }
 ]

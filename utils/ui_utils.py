@@ -178,12 +178,18 @@ def generate_media_viewer(documents, document_order, videos, video_order):
                         <p style="color: #888; margin: 0; font-size: 11px;">YouTube Video • ID: {youtube_id}</p>
                     </div>
                     <div style="padding: 8px 12px;">
-                        <details>
-                            <summary style="color: #e74c3c; cursor: pointer; font-size: 12px;">Watch Video</summary>
+                        <details style="margin-bottom: 8px;">
+                            <summary style="color: #e74c3c; cursor: pointer; font-size: 12px;">📺 Watch Video</summary>
                             <div style="margin-top: 8px;">
-                                <iframe width="100%" height="200" src="{embed_url}" 
-                                        frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                <iframe width="100%" height="200" src="{embed_url}"
+                                        frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                         allowfullscreen style="border-radius: 5px;"></iframe>
+                            </div>
+                        </details>
+                        <details>
+                            <summary style="color: #f39c12; cursor: pointer; font-size: 12px;">📄 View AI Description (JSON)</summary>
+                            <div style="margin-top: 8px;">
+                                {generate_video_description_json(video_id, i)}
                             </div>
                         </details>
                     </div>
@@ -208,8 +214,8 @@ def generate_media_viewer(documents, document_order, videos, video_order):
                     <p style="color:#888; margin:0; font-size:11px;">Local Video File</p>
                 </div>
                 <div style="padding:8px 12px;">
-                    <details>
-                    <summary style="color:#e74c3c; cursor:pointer; font-size:12px;">Watch Video</summary>
+                    <details style="margin-bottom: 8px;">
+                    <summary style="color:#e74c3c; cursor:pointer; font-size:12px;">📺 Watch Video</summary>
                     <div style="margin-top:8px;">
                         <video controls width="100%" preload="metadata" style="border-radius:5px; background:black;">
                         <source src="{data_uri}" type="video/mp4">
@@ -220,6 +226,12 @@ def generate_media_viewer(documents, document_order, videos, video_order):
                         </p>
                     </div>
                     </details>
+                    <details>
+                        <summary style="color: #f39c12; cursor: pointer; font-size: 12px;">📄 View AI Description (JSON)</summary>
+                        <div style="margin-top: 8px;">
+                            {generate_video_description_json(video_id, i)}
+                        </div>
+                    </details>
                 </div>
                 </div>
                 """
@@ -228,10 +240,192 @@ def generate_media_viewer(documents, document_order, videos, video_order):
     viewer_html += """
         <div style="border-top: 1px solid #444; padding-top: 15px; margin-top: 15px;">
             <p style="color: #888; font-size: 12px; margin: 0;">
-                💡 Documents are automatically included in AI chat. Video content analysis coming soon!
+                💡 Documents are automatically included in AI chat. Videos are analyzed with AI descriptions upon upload.
             </p>
         </div>
     </div>
     """
     
     return viewer_html
+
+def generate_video_description_json(video_id, video_index):
+    """
+    Generate HTML display for video description JSON.
+    
+    Args:
+        video_id: Video ID
+        video_index: Video index for lookup
+        
+    Returns:
+        HTML string with JSON description or placeholder
+    """
+    try:
+        import json
+        import os
+        
+        # Get the JSON folder path
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        json_file_path = os.path.join(current_dir, "json", "video_structured_info.json")
+        
+        if not os.path.exists(json_file_path):
+            return """
+            <div style="background-color: #2c2c2c; padding: 15px; border-radius: 5px; border-left: 4px solid #f39c12;">
+                <p style="color: #f39c12; margin: 0; font-size: 12px;">⏳ Video description not yet generated</p>
+                <p style="color: #888; margin: 5px 0 0 0; font-size: 11px;">Upload the video to automatically generate AI descriptions.</p>
+            </div>
+            """
+        
+        # Read and parse the JSON file
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            video_descriptions = json.load(f)
+        
+        # Find the description for this video
+        video_description = None
+        for desc in video_descriptions:
+            if desc.get('video_id') == video_index:
+                video_description = desc
+                break
+        
+        if not video_description:
+            return """
+            <div style="background-color: #2c2c2c; padding: 15px; border-radius: 5px; border-left: 4px solid #e74c3c;">
+                <p style="color: #e74c3c; margin: 0; font-size: 12px;">❌ No description found</p>
+                <p style="color: #888; margin: 5px 0 0 0; font-size: 11px;">Video description may still be processing.</p>
+            </div>
+            """
+        
+        # Count timestamps
+        timestamp_count = len(video_description.get('video_content', []))
+        
+        # Create syntax-highlighted JSON
+        highlighted_json = create_syntax_highlighted_json(video_description)
+        
+        return f"""
+        <div style="background-color: #0a0a0a; padding: 15px; border-radius: 5px; border-left: 4px solid #2ecc71;">
+            <div style="margin-bottom: 10px;">
+                <p style="color: #2ecc71; margin: 0; font-size: 12px; font-weight: bold;">✅ AI Description Available</p>
+                <p style="color: #888; margin: 2px 0 0 0; font-size: 11px;">
+                    Generated {timestamp_count} timestamped segments with transcripts and descriptions
+                </p>
+            </div>
+            <details>
+                <summary style="color: #3498db; cursor: pointer; font-size: 11px; margin-bottom: 8px;">Show JSON Data</summary>
+                <div style="margin-top: 8px; max-height: 400px; overflow-y: auto; background-color: #1a1a1a; padding: 15px; border-radius: 5px; border: 1px solid #333;">
+                    {highlighted_json}
+                </div>
+            </details>
+        </div>
+        """
+        
+    except Exception as e:
+        return f"""
+        <div style="background-color: #2c2c2c; padding: 15px; border-radius: 5px; border-left: 4px solid #e74c3c;">
+            <p style="color: #e74c3c; margin: 0; font-size: 12px;">❌ Error loading description</p>
+            <p style="color: #888; margin: 5px 0 0 0; font-size: 11px;">Error: {str(e)}</p>
+        </div>
+        """
+
+def create_syntax_highlighted_json(json_data, indent=0):
+    """
+    Pretty-print Python data as coloured JSON HTML.
+    • Keys           → .json-key
+    • String values  → .json-string
+    • Escapes (e.g. \n, \t, \", \\) → .json-esc
+    """
+    import json, html, re
+    IND = "  "
+    # matches a backslash + any single character
+    ESC_RE = re.compile(r'\\.')
+
+    def build_string(raw, inner_cls):
+        # 1) literalize control chars
+        s = raw.replace('\r', '\\r') \
+               .replace('\n', '\\n') \
+               .replace('\t', '\\t')
+        # 2) backslash-escape any embedded quotes
+        s = s.replace('"', '\\"')
+        # 3) split on any backslash+char
+        parts, last = [], 0
+        for m in ESC_RE.finditer(s):
+            start, end = m.span()
+            # plain text chunk
+            if start > last:
+                chunk = s[last:start]
+                parts.append(
+                    f'<span class="{inner_cls}">{html.escape(chunk)}</span>'
+                )
+            # the escape sequence itself
+            esc = m.group(0)
+            parts.append(
+                f'<span class="json-esc">{html.escape(esc, quote=False)}</span>'
+            )
+            last = end
+        # tail
+        if last < len(s):
+            chunk = s[last:]
+            parts.append(
+                f'<span class="{inner_cls}">{html.escape(chunk)}</span>'
+            )
+        # wrap in quotes
+        return (
+            '<span class="json-quote">"</span>'
+            + "".join(parts) +
+            '<span class="json-quote">"</span>'
+        )
+
+    q_key = lambda k: build_string(k, "json-key")
+    q_val = lambda v: build_string(v, "json-string")
+    punct = lambda ch, cls="json-punct": f'<span class="{cls}">{ch}</span>'
+
+    def render(obj, lvl):
+        sp = IND * lvl
+        if isinstance(obj, dict):
+            out = [punct("{", "json-brace")]
+            if obj:
+                out.append("\n")
+                for i, (k, v) in enumerate(obj.items()):
+                    out += [
+                        sp + IND,
+                        q_key(k),
+                        punct(":", "json-colon"), " ",
+                        render(v, lvl + 1)
+                    ]
+                    if i < len(obj) - 1:
+                        out.append(punct(",", "json-comma"))
+                    out.append("\n")
+                out.append(sp)
+            out.append(punct("}", "json-brace"))
+            return "".join(out)
+
+        if isinstance(obj, list):
+            out = [punct("[", "json-bracket")]
+            if obj:
+                out.append("\n")
+                for i, v in enumerate(obj):
+                    out += [sp + IND, render(v, lvl + 1)]
+                    if i < len(obj) - 1:
+                        out.append(punct(",", "json-comma"))
+                    out.append("\n")
+                out.append(sp)
+            out.append(punct("]", "json-bracket"))
+            return "".join(out)
+
+        if isinstance(obj, str):
+            return q_val(obj)
+
+        if isinstance(obj, bool):
+            return f'<span class="json-bool">{str(obj).lower()}</span>'
+
+        if obj is None:
+            return '<span class="json-null">null</span>'
+
+        return f'<span class="json-num">{obj}</span>'
+
+    body = render(json_data, indent)
+    return (
+        '<div class="json-box"><pre style="margin:0;font-size:11px;'
+        'line-height:1.4;color:#e0e0e0;white-space:pre-wrap;'
+        'word-break:break-all;">'
+        + body +
+        '</pre></div>'
+    )

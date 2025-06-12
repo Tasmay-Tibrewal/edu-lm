@@ -161,6 +161,31 @@ def save_docs_structured_info(documents, document_order, structured_docs_cache):
         print(f"Error saving structured document info: {e}")
         return structured_docs_cache
 
+def save_video_structured_info(video_descriptions, structured_videos_cache):
+    """
+    Save the structured video information to video_structured_info.json file and update in-memory cache.
+    
+    Args:
+        video_descriptions: List of video description dictionaries
+        structured_videos_cache: In-memory cache for structured video information
+        
+    Returns:
+        Updated structured_videos_cache
+    """
+    try:
+        # Update in-memory cache
+        structured_videos_cache = video_descriptions.copy() if video_descriptions else []
+        
+        # Save to file
+        with open(os.path.join(JSON_FOLDER, "video_structured_info.json"), "w", encoding="utf-8") as f:
+            json.dump(video_descriptions, f, indent=2, ensure_ascii=False)
+        
+        print(f"Saved structured video info to video_structured_info.json and updated cache ({len(video_descriptions)} videos)")
+        return structured_videos_cache
+    except Exception as e:
+        print(f"Error saving structured video info: {e}")
+        return structured_videos_cache
+
 def initialize_json_files():
     """Initialize all JSON files as empty at startup."""
     try:
@@ -169,6 +194,10 @@ def initialize_json_files():
         
         # Initialize the new structured docs file
         with open(os.path.join(JSON_FOLDER, "docs_structured_info.json"), "w", encoding="utf-8") as f:
+            json.dump([], f, indent=2, ensure_ascii=False)
+        
+        # Initialize the structured video info file
+        with open(os.path.join(JSON_FOLDER, "video_structured_info.json"), "w", encoding="utf-8") as f:
             json.dump([], f, indent=2, ensure_ascii=False)
             
         print("Initialized all JSON files as empty")

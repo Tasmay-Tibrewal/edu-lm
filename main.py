@@ -14,7 +14,7 @@ from pathlib import Path
 # Import custom modules
 from config import load_env, initialize_api_clients
 from manage.data_manager import (save_llm_call_payload, save_chat_history,
-                                save_docs_structured_info, initialize_json_files)
+                                save_docs_structured_info, save_video_structured_info, initialize_json_files)
 from utils.document_utils import (create_document_content_block, upload_and_process_document,
                                  view_document, create_chat_messages_for_llm)
 from utils.video_utils import process_video_upload
@@ -24,7 +24,7 @@ from manage.state_manager import (reset_all_state, add_user_and_placeholder,
                                  clear_chat, stream_assistant_reply)
 
 # Initialize API clients
-mistral_client, openai_client, groq_client, openai_tts_client, model = initialize_api_clients()
+mistral_client, openai_client, groq_client, openai_tts_client, model, genai_client = initialize_api_clients()
 
 # Global variables to store multiple documents and videos content
 documents = {}  # Dictionary to store all document data: {doc_id: {content, text, ocr_response, file_name}}
@@ -36,6 +36,7 @@ llm_chat_history_show = None
 document_positions = {}  # Track position of each document in chat history: {doc_id: position_index}
 chat_position_counter = 0  # Counter to track next position for new documents
 structured_docs_cache = []  # In-memory cache for structured document information
+structured_videos_cache = []  # In-memory cache for structured video information
 
 # Initialize empty JSON files at startup
 initialize_json_files()
@@ -183,6 +184,7 @@ def upload_and_process(files, chat_history):
 def process_video_upload_wrapper(files, youtube_url, chat_history):
     """
     Wrapper for process_video_upload to handle global variables.
+    Automatically generates video descriptions upon upload.
     
     Args:
         files: List of uploaded video files
@@ -192,10 +194,10 @@ def process_video_upload_wrapper(files, youtube_url, chat_history):
     Returns:
         Updated chat history and video viewer HTML
     """
-    global videos, video_order
+    global videos, video_order, structured_videos_cache
     
-    chat_history, processed_videos, failed_videos = process_video_upload(
-        files, youtube_url, chat_history, videos, video_order
+    chat_history, processed_videos, failed_videos, structured_videos_cache = process_video_upload(
+        files, youtube_url, chat_history, videos, video_order, genai_client, structured_videos_cache
     )
     
     save_chat_history(chat_history)
@@ -305,12 +307,15 @@ def reset_all_state_wrapper():
         Tuple of (empty chat history, empty media viewer)
     """
     global documents, document_order, videos, video_order, llm_chat_history, llm_chat_history_show
-    global document_positions, chat_position_counter, structured_docs_cache
+    global document_positions, chat_position_counter, structured_docs_cache, structured_videos_cache
     
     documents, document_order, videos, video_order, llm_chat_history, llm_chat_history_show, document_positions, chat_position_counter, structured_docs_cache = reset_all_state(
         documents, document_order, videos, video_order, llm_chat_history, llm_chat_history_show,
         document_positions, chat_position_counter, structured_docs_cache
     )
+    
+    # Reset video cache as well
+    structured_videos_cache = []
     
     return [], generate_media_viewer(documents, document_order, videos, video_order)
 
@@ -342,12 +347,30 @@ css = """
     background-color: #3498db !important;
     color: white !important;
 }
+
+/* ── existing JSON classes (unchanged) ─────────────────────────────── */
+.json-box   {background:#454545;padding:12px;border-radius:4px;
+             font-family:'Fira Code','Consolas',monospace;}
+.json-key   {color:#37a3f0;}
+.json-string{color:#e98659;}
+.json-num   {color:#97e76c;}
+.json-bool  {color:#3a73e5;}
+.json-null  {color:#db4e49;}
+.json-punct {color:#a5d7ea;}
+
+/* ── NEW granular punctuation classes ─────────────────────────────── */
+.json-brace      {color:#f1c947;}   /* { } */
+.json-bracket    {color:#c49703;}   /* [ ] */
+.json-comma      {color:#a5d7ea;}   /* ,   */
+.json-colon      {color:#82aae5;}   /* :   */
+.json-quote      {color:#7ee7b4;}   /* "   */
+.json-esc   {color:#e4e829;}   /* \n  \"  \\  \\uXXXX */
 """
 
 with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
     with gr.Column(elem_classes="container"):
         gr.Markdown("# Multi-Media Chat Assistant", elem_classes="title")
-        gr.Markdown("Upload PDF documents and videos to interact with their contents. Documents are processed with OCR and videos are available for viewing.")
+        gr.Markdown("Upload PDF documents and videos to interact with their contents. Documents are processed with OCR and videos are automatically analyzed with AI descriptions.")
         
         with gr.Row():
             # Left sidebar for Media viewer
@@ -364,10 +387,9 @@ with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
                 with gr.Row():
                     youtube_input = gr.Textbox(label="YouTube URL", placeholder="https://youtube.com/watch?v=...", value="", scale=4)
                     youtube_btn = gr.Button("Add YouTube", elem_classes="button", scale=1, size="lg")
+
+                media_viewer = gr.HTML(label="Media Content", value=generate_media_viewer(documents, document_order, videos, video_order), elem_id="media_viewer")
                 
-                # Combined media viewer
-                media_viewer = gr.HTML(label="Media Content", value=generate_media_viewer(documents, document_order, videos, video_order))
-            
             # Right side for chat interface
             with gr.Column(scale=3, elem_classes="chatbox"):
                 gr.Markdown("### Chat with PDF Content")
