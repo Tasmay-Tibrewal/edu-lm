@@ -1,0 +1,77 @@
+[
+    {
+        "document_name": "$name_of_the_doc", // name of the document, like "AGV_Task_2023.pdf"
+        "document_id": 0, // doc id is 0 indexed
+        "document_info_available": 1, // this document is in context and not deleted, so it is available
+        "document_content":   
+            [
+                {
+                    "page_num": 0,
+                    "page_markdown_content": {
+                            "content_type": "text",
+                            "content": "$content_in_markdown_format_for_page"
+                            // the content is in markdown format, it can contain images, text, tables, etc.
+                            // the content is basically the content that was outputted by mistral ocr api
+                            // here images are referenced by their tags, which are xml tags, in the format `<doc-0-page-1-img-4>` where 0 is the document id, 1 is the page number, and 4 is the image id
+                            // here is an example of the markdown content:
+                            // "content": "## Content\nThis is a sample content with an **image**: <doc-0-page-0-img-1> and **another image** <doc-0-page-0-img-2>."
+                        },
+                    "page_image_content": [{
+                                "image_id": 0,
+                                "image_tag": "$tag_of_image", //tag of image is the format in which image's name is written to the llm in its calls like `doc-0-page-0-img-1`
+                                "image_base64_data": "$base64_encoded_image_data" // base64 encoded image data
+                            },
+                            {
+                                "image_id": 1,
+                                "image_tag": "$tag_of_image",
+                                "image_base64_data": "$base64_encoded_image_data"
+                            }//, add more images as needed
+                        ]
+                },
+                {
+                    "page_num": 1,
+                    "page_markdown_content": {
+                            "content_type": "text",
+                            "content": "$content_in_markdown_format_for_page"
+                        },
+                    "page_image_content": [{
+                                "image_id": 0,
+                                "image_tag": "$tag_of_image",
+                                "image_base64_data": "$base64_encoded_image_data"
+                            },
+                            {
+                                "image_id": 1,
+                                "image_tag": "$tag_of_image",
+                                "image_base64_data": "$base64_encoded_image_data"
+                            }// ...
+                        ]
+                }//, add more pages as needed
+            ]
+    },
+    {
+        "document_name": "$name_of_the_doc_2",
+        "document_id": 1, // doc id is 0 indexed
+        "document_info_available": 1, // this document is in context and not deleted, so it is available
+        "document_content":   
+            [
+                {
+                    "page_num": 0,
+                    "page_markdown_content": {
+                            "content_type": "text",
+                            "content": "$content_in_markdown_format_for_page"
+                        },
+                    "page_image_content": [{
+                                "image_id": 0,
+                                "image_tag": "$tag_of_image",
+                                "image_base64_data": "$base64_encoded_image_data"
+                            },
+                            {
+                                "image_id": 1,
+                                "image_tag": "$tag_of_image",
+                                "image_base64_data": "$base64_encoded_image_data"
+                            }//, ...
+                        ]
+                }//, add more pages as needed
+            ]
+    }//, add more documents as needed
+]

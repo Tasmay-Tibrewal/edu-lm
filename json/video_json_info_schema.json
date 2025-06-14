@@ -1,0 +1,30 @@
+[
+    {
+        "video_name": "$name_of_the_video", // name of the video
+        "video_id": 0, // video id is 0 indexed
+        "video_info_available": 1, // this video is in context and not deleted, so it is available
+        "video_content": [
+            {
+                "video_timestamp_num": 0, // timestamp number
+                "timestamp_start": "00:00:00", // start time of the timestamp in HH:MM:SS format
+                "timestamp_end": "00:01:23", // end time of the timestamp in HH:MM:SS format
+                "timestamp_transcript_content": {
+                        "content_type": "text", // content type is text
+                        "content": "$transcript_in_markdown_format_for_timestamp" // transcript content in markdown format, with expressions like (laughs), (applause), (excited), (background noise), and then ## for headings, or ** for importance etc.
+                    },
+                "timestamp_description_content": {
+                        "content_type": "text", // content type is text
+                        "content": "$description_in_markdown_format_for_timestamp" // description content in markdown format, this describes the video content, and the audio content in the timestamp, influenced by the context of the video and the previous scenes/timestamps
+                        // the description should include references to the transcript content, like "the speaker says X, as mentioned in the transcript."
+                        // the description should also include references to the video content, like "speaker shows a diagram of Y in the video."
+                        // the description should also talk about the visuals, the speaker's expressions or body language (if relevant), the background, and any other relevant details that can help the user understand the video content better
+                        // it should talk about the tone of voice, the mood, the background noise or music, etc.
+                        // it should also talk about the context of timestamp being discussed and how it relates to the overall video content
+                        // it should be detailed and comprehensive, and explain the content of the timestamp in high details
+                        // ideally the videos will be lectures, tutorials, or educational content, so the description should be informative and helpful
+                        // it should capture all the information that is provided in the video for the topic being discussed
+                    }
+            } // add more timestamps as needed
+        ]
+    }
+]
