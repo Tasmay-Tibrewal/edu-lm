@@ -14,11 +14,12 @@
 6. [Architecture](#architecture)
 7. [Module Structure](#module-structure)
 8. [Detailed Implementation](#detailed-implementation)
-9. [API Integration](#api-integration)
-10. [File Structure](#file-structure)
-11. [Troubleshooting](#troubleshooting)
-12. [Contributing](#contributing)
-13. [License](#license)
+9. [Data Structures and Schemas](#data-structures-and-schemas)
+10. [API Integration](#api-integration)
+11. [File Structure](#file-structure)
+12. [Troubleshooting](#troubleshooting)
+13. [Contributing](#contributing)
+14. [License](#license)
 
 ---
 
@@ -46,9 +47,10 @@ This application is a sophisticated multi-media chat assistant that combines adv
 ### 🗂️ Document Management
 - **Multi-file upload**: Support for multiple PDF files with drag-and-drop
 - **Smart document tracking**: Chronological order preservation and position tracking
-- **Dynamic file management**: Add/remove documents without losing chat history
-- **Visual content preview**: Expandable document viewer with formatted content
-- **OCR with image preservation**: Extract text while maintaining embedded images
+- **Dynamic file management**: Add or remove documents and videos dynamically.
+- **Unified Removal**: Remove documents and videos directly from the media viewer using a cross (×) button, which also updates the file upload list for a synchronized UI.
+- **Visual content preview**: Expandable document viewer with formatted content.
+- **OCR with image preservation**: Extract text while maintaining embedded images.
 - **Structured document data**: Auto-generated JSON schemas for document content
 
 ### 🎥 Video Support
@@ -88,7 +90,7 @@ This application is a sophisticated multi-media chat assistant that combines adv
 - **Video descriptions**: `json/video_structured_info.json` with AI-generated video transcripts and descriptions
 - **Session management**: State preservation across application restarts
 - **Debug capabilities**: Detailed logging and payload inspection
-- **Document deletion handling**: On document removal, the LLM call payload replaces the removed document's content block with a deletion info block and appends an internal deletion notification.
+- **Document deletion handling**: When a document is removed, its content is replaced in the LLM's context with a special "deletion block", preserving chat continuity while accurately reflecting the document's absence.
 
 ### 🤖 Video AI Analysis
 - **Transcript generation**: Automatic speech-to-text with timestamps and expressions
@@ -98,13 +100,13 @@ This application is a sophisticated multi-media chat assistant that combines adv
 - **Multi-part processing**: Automatic handling of videos longer than 50 minutes
 - **Parallel processing**: Multiple videos processed simultaneously for efficiency
 - **Rich metadata**: Comprehensive information capture including equations, diagrams, and key concepts
-- **XML-to-JSON conversion**: Reliable parsing using structured XML format to prevent model output errors
-- **Automatic triggering**: Video analysis starts immediately upon upload without user intervention
-- **Duplicate prevention**: Smart tracking system prevents reprocessing of existing videos
-- **Colorful JSON display**: Syntax-highlighted JSON output with professional code formatting
-- **Real-time status updates**: Live feedback during processing with progress indicators
-- **Error handling**: Robust error recovery and user-friendly error messages
-- **Schema validation**: Structured data output following predefined JSON schema specifications
+- **Robust XML-to-JSON Pipeline**: Uses a custom XML-based prompt and parser to ensure reliable, error-free JSON output from the AI model.
+- **Automatic Triggering**: Video analysis starts immediately upon upload without user intervention.
+- **Duplicate Prevention**: Smart tracking system prevents reprocessing of existing videos.
+- **Colorful JSON Display**: Custom-built, syntax-highlighted JSON output with professional code formatting.
+- **Real-time Status Updates**: Live feedback during processing with progress indicators.
+- **Error Handling**: Robust error recovery and user-friendly error messages.
+- **Schema Adherence**: Structured data output follows predefined JSON schema specifications.
 
 ---
 
@@ -191,10 +193,11 @@ The application uses the following models (configurable in [`config.py`](config.
 3. **Video Viewing**: Videos are embedded in the media viewer for instant playback.
 4. **Duplicate Prevention**: The system prevents uploading duplicate videos.
 
-### Removing Videos
+### Removing Documents & Videos
 
-1. **From Media Viewer**: Click the red cross (×) button on any video card in the media viewer to remove it.
-2. **From Upload List**: For local videos, clicking the cross (×) next to the file in the upload component will also remove it from the session.
+1.  **From Media Viewer**: Click the red cross (×) button on any document or video card in the media viewer to remove it.
+2.  **From Upload List**: For local files (PDFs or videos), clicking the cross (×) next to the file in the upload component will also remove it from the session.
+3.  **Synchronized UI**: Removing a file from the media viewer will also automatically remove it from the corresponding upload component's list, keeping the interface consistent.
 
 ### Chatting with Documents
 
@@ -322,6 +325,49 @@ main.py
 
 ## Detailed Implementation
 
+This section dives deeper into the core logic and architectural patterns that power the application.
+
+### 1. State Management and Modularity
+
+The application follows a centralized state management pattern.
+- **Global State**: Core state variables (e.g., `documents`, `videos`, `llm_chat_history`) are managed globally within [`main.py`](main.py:1).
+- **Stateless Modules**: The `utils` and `manage` modules contain stateless functions that operate on the data passed to them.
+- **Wrapper Functions**: [`main.py`](main.py:1) uses wrapper functions (e.g., `upload_and_process`, `stream_assistant_reply_wrapper`) to pass the global state to the modular functions and update the state with the results. This keeps the business logic clean and decoupled from the global state.
+
+### 2. Media Removal and UI Synchronization
+
+A key feature is the ability to remove media directly from the UI with full backend and frontend synchronization. This is achieved through a clever combination of JavaScript and Gradio event handling.
+
+**Execution Flow:**
+1.  **HTML `onclick`**: The user clicks the '×' button on a media card in the `gr.HTML` component. This button has an `onclick` attribute that calls a global JavaScript function (e.g., `removeDocumentClick('doc_id')`).
+2.  **JavaScript Injection**: The `removal_js` script is injected into the Gradio app via `demo.load()`. This script attaches the `removeDocumentClick` and `removeVideoClick` functions to the `globalThis` object, making them accessible from the HTML.
+3.  **Hidden Textbox Trigger**: The JavaScript function finds a hidden `gr.Textbox` component in the DOM (e.g., `remove_document_hidden`). It then programmatically sets the value of this textbox to the ID of the media to be removed and dispatches `input` and `change` events.
+4.  **Gradio Event Handler**: A `.change()` event handler in Python is attached to the hidden textbox. When the JavaScript updates the textbox's value, this event fires.
+5.  **Backend Logic**: The Python handler (`remove_document_wrapper` or `remove_video_wrapper`) executes the removal logic (deleting from state, updating caches, etc.).
+6.  **UI Synchronization**: The wrapper function takes the corresponding `gr.File` component (`file_input` or `video_input`) as both an `input` and an `output`. It reads the current list of files, filters out the one that was removed, and returns the new, shorter list back to the `gr.File` component, forcing it to refresh its display.
+
+This pattern provides a seamless user experience, making the static `gr.HTML` component interactive and keeping it perfectly synchronized with other Gradio components.
+
+### 3. LLM Context Management
+
+The application maintains a long-term, chronologically ordered context for the Large Language Model.
+
+- **Initial Context Creation**: When the first chat message is sent, a full context is created by `create_chat_messages_for_llm()`, which includes a system prompt and a detailed, multi-part message for each uploaded document.
+- **Document Content Block**: Each document is represented by a complex message block created by `create_document_content_block()`. This block includes the document's name, page count, and a page-by-page breakdown with text and images. Images are referenced with a unique naming scheme (e.g., `doc-0-page-0-img-0`) that corresponds to the structured data saved in `docs_structured_info.json`.
+- **Handling Document Deletion**: A critical feature is how deletions are handled to avoid confusing the LLM. Instead of just removing the document's content from the history (which would break the chronological flow), the `upload_and_process` and `remove_document_wrapper` functions replace the original document content block at its specific position in `llm_chat_history` with a **"deletion block"**. This block is a simple text message informing the model that the document was deleted by the user and is no longer accessible. This maintains the integrity of the conversation history while ensuring the model is aware of the change in available context.
+
+### 4. Robust Video Analysis via XML Prompting
+
+To get reliable, structured data from the LLM for video analysis, the application avoids asking for JSON directly, which can be prone to syntax errors and hallucinations. Instead, it uses a robust XML-based pipeline.
+
+**Execution Flow:**
+1.  **XML System Prompt**: A detailed system prompt is sent to the Gemini model, instructing it to format its output as a structured XML document. The exact schema is defined in the prompt itself (see [`video_structured_info_schema.xml`](json/video_structured_info_schema.xml:1)). This forces the model to adhere to a strict, predictable structure.
+2.  **Model Generates XML**: The LLM processes the video and generates a response containing the transcript and description within the specified `<video_desc_doc>` XML tags.
+3.  **Custom XML Parsing**: The application uses a custom regex-based parser, [`parse_xml_to_json()`](utils/video_description.py:145), to extract the data from the XML string. This parser is highly resilient to minor formatting variations and reliably extracts the required fields.
+4.  **Conversion to JSON**: The parsed data is then converted into the final, clean JSON format.
+
+This XML-first approach is a key piece of engineering that makes the video analysis feature highly reliable and eliminates common issues with model-generated JSON.
+
 ### 1. Configuration Module ([`config.py`](config.py:1))
 
 **Environment Setup & Client Initialization**
@@ -396,7 +442,7 @@ main.py
 
 **HTML Generation & Interface Components**
 - **[`generate_document_buttons()`](utils/ui_utils.py:6)**: Creates document navigation HTML.
-- **[`generate_media_viewer()`](utils/ui_utils.py:105)**: Unified document and video viewer with dual dropdown interface and removal buttons.
+- **[`generate_media_viewer()`](utils/ui_utils.py:105)**: Unified document and video viewer with dual dropdown interface and removal buttons for both documents and videos.
 - **[`generate_youtube_url_manager()`](utils/ui_utils.py:449)**: Generates HTML interface for managing multiple YouTube URLs.
 - **[`generate_video_description_json()`](utils/ui_utils.py:267)**: Generates video description display with status indicators.
 - **[`create_syntax_highlighted_json()`](utils/ui_utils.py:344)**: Creates beautiful, colorful JSON syntax highlighting.
@@ -422,7 +468,8 @@ main.py
 - **Global Variables**: Manages application-wide state.
 - **Wrapper Functions**: Bridges modules with global state.
     - **[`process_video_upload_and_removal_wrapper()`](main.py:211)**: Handles both video uploads and removals from the file upload component.
-    - **[`remove_video_wrapper()`](main.py:279)**: Handles video removal triggered by the cross buttons in the media viewer.
+    - **[`remove_video_wrapper()`](main.py:279)**: Handles video removal triggered by the cross buttons in the media viewer and syncs the UI.
+    - **[`remove_document_wrapper()`](main.py:325)**: Handles document removal triggered by the cross buttons in the media viewer and syncs the UI.
     - **[`process_multiple_youtube_urls_wrapper()`](main.py:301)**: Handles batch processing of multiple YouTube URLs.
 - **UI Event Handlers**: Connects Gradio events to module functions.
 - **Session Management**: Coordinates data flow between modules.
@@ -458,6 +505,42 @@ main.py
    Audio Input → utils/audio_utils.py → Groq Whisper → Text Input
    Response Text → utils/audio_utils.py → OpenAI TTS → Audio Output
    ```
+
+---
+
+## Data Structures and Schemas
+
+The application generates and uses several structured data files in the `json/` directory. Understanding these structures is key to extending the application.
+
+### 1. `docs_structured_info.json`
+
+This file contains a structured representation of all currently uploaded and available PDF documents. It is generated by [`generate_docs_structured_info()`](manage/data_manager.py:55).
+
+- **Purpose**: Provides a machine-readable version of the document content, primarily for reference and potential future features. It is not directly sent to the LLM.
+- **Key Feature**: In the `page_markdown_content`, image references from the original OCR output (e.g., `![img-0.jpeg](img-0.jpeg)`) are replaced with a unique XML-like tag (e.g., `<doc-0-page-0-img-1>`). This tag corresponds to an entry in the `page_image_content` array, which holds the actual base64 data for the image.
+- **Schema**: See [`json/doc_json_info_schema.json`](json/doc_json_info_schema.json:1) for a detailed example.
+
+### 2. `video_structured_info.json`
+
+This file stores the AI-generated analysis for all processed videos.
+
+- **Purpose**: Caches the expensive video analysis results to prevent reprocessing and serves as the data source for the UI's JSON viewer.
+- **Generation**: It is created by the video analysis pipeline in [`utils/video_description.py`](utils/video_description.py:1) and saved via [`save_video_structured_info()`](manage/data_manager.py:164).
+- **Structure**: It's an array of video objects. Each object contains the video's name, its index (`video_id`), and a `video_content` array of timestamped segments. Each segment has a transcript and a detailed AI-generated description.
+- **Schema**: See [`json/video_json_info_schema.json`](json/video_json_info_schema.json:1) for a detailed example.
+
+### 3. `video_structured_info_schema.xml`
+
+This file is **not a schema for validation**. Instead, it is a **prompt template**.
+
+- **Purpose**: This XML structure is embedded directly into the system prompt given to the Gemini model for video analysis. It serves as a strict template, forcing the model to generate its output in a predictable XML format, which is then safely parsed by the application. This is a core part of the robust XML-to-JSON pipeline.
+
+### 4. `llm_structured_call.json` & `llm_structured_call_show.json`
+
+These files store the complete conversation history that is sent to the LLM.
+
+- **Purpose**: They represent the LLM's "memory". `llm_structured_call.json` contains the full, unabridged context, including full-resolution base64 images. `llm_structured_call_show.json` is a truncated version for easier debugging and inspection.
+- **Structure**: It's a list of messages, following the standard OpenAI/Gemini message format (`role` and `content`). It includes the system prompt, the multi-part user messages containing document content, and the history of user questions and assistant answers.
 
 ---
 
@@ -548,12 +631,12 @@ project/
 
 The application automatically creates and maintains several JSON files in the `json/` folder:
 
-- **`json/chat_history_gradio.json`**: Stores the Gradio chat interface history
-- **`json/llm_structured_call.json`**: Complete LLM conversation payloads
-- **`json/llm_structured_call_show.json`**: Truncated payloads for debugging
-- **`json/docs_structured_info.json`**: Structured document information with content and metadata
-- **`json/video_structured_info.json`**: Complete video descriptions with timestamped transcripts and AI analysis
-- **`json/video_structured_info_schema.xml`**: XML schema template for video description generation
+- **`json/chat_history_gradio.json`**: Stores the user-facing chat history for the Gradio UI.
+- **`json/llm_structured_call.json`**: The complete, unabridged conversation context sent to the LLM, including full base64 images.
+- **`json/llm_structured_call_show.json`**: A truncated version of the LLM context for easier debugging.
+- **`json/docs_structured_info.json`**: A structured representation of all uploaded PDFs, with tagged image references.
+- **`json/video_structured_info.json`**: The cached, AI-generated descriptions and transcripts for all processed videos.
+- **`json/video_structured_info_schema.xml`**: An XML **prompt template** used to force structured output from the video analysis model.
 
 ### Module Organization
 

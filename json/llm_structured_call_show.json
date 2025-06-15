@@ -1,1 +1,101 @@
-[]
+[
+  {
+    "role": "system",
+    "content": "You are an assistant that helps users understand multiple document contents. The documents have been processed with OCR and contain both text and images."
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Document name: WorldQuant_Research Consultant_Onboarding_Confirmation.pdf.\nThis document contains 2 pages with text and images."
+      },
+      {
+        "type": "text",
+        "text": "\n\n\n--------------------\n## Document 0 - Page 1:-\n\n"
+      },
+      {
+        "type": "text",
+        "text": "Attaching an image in the page. Image name: doc-0-page-0-img-0.jpeg.\n\n"
+      },
+      {
+        "type": "image_url",
+        "image_url": {
+          "url": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
+        }
+      },
+      {
+        "type": "text",
+        "text": "\n\n## **Important - Research Consultant Onboarding Information**\n\n**WorldQuant BRAIN India** <India@worldquantbrain.com>\nTo: Tasmay Pankaj Tibrewal <keshavtibrewal2@gmail.com>\n19 April 2024 at 10:32\n\n\n\n"
+      },
+      {
+        "type": "text",
+        "text": "Attaching an image in the page. Image name: doc-0-page-0-img-1.jpeg.\n\n"
+      },
+      {
+        "type": "image_url",
+        "image_url": {
+          "url": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD..."
+        }
+      },
+      {
+        "type": "text",
+        "text": "Remaining text in the page: \n\nDear Tasmay,\n\nWe would like to welcome you as a fully approved Research Consultant with WorldQuant BRAIN! This email provides important information about your new role as a Research Consultant. Please take some time to review this information and keep it for future reference.\n\nYour BRAIN account is now formally switched to *Consultant* status, while you may continue to participate in IQC.\n\n## **Important links: Consultant in IQC | Learn | Compensation**\n\n- For questions related to logistics, p\n\n"
+      },
+      {
+        "type": "text",
+        "text": "\n\n\n--------------------\n## Document 0 - Page 2:-\n\n"
+      },
+      {
+        "type": "text",
+        "text": "Remaining text in the page: locked\" notification in your BRAIN account, go to your account page, update your details in the Basic Details and Employment tabs (if the details have not changed, no update is required), click on the confirmation checkbox at the bottom of the page and save your changes.\nAdditionally, we encourage you to stay active on the platform! Your account will freeze after 90 days of inactivity.\nWelcome again to WorldQuant BRAIN's growing team of Research Consultants. We wish you great success in our prog\n\n"
+      }
+    ]
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Document name: Tasmay P Tibrewal_Harvard_Summer Research Internship_Acceptance Letter.pdf.\nThis document contains unknown pages with text and images.\nThis document was deleted manually by the user and you no longer have access to its contents. It was earlier uploaded by the user but now it is removed and no longer available. You no longer have access to this document's information. However it may be the case that the document was referenced in the chat history, which information has not been removed. The only information about this document that you have is that mentioned in the chat history in its reference. Rest no information is available, you do not have access to its content. User has also notified about at which point this information was deleted in the chat history."
+      }
+    ]
+  },
+  {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "--------------------DOCUMENTS END--------------------\n--------------------------------------------------\n\n\n"
+      }
+    ]
+  },
+  {
+    "role": "user",
+    "content": "The document: Tasmay P Tibrewal_Harvard_Summer Research Internship_Acceptance Letter.pdf was deleted at this point in the chat history, you may find references about the document before this in the chathistory, but not after this since it was deleted. You also wont have the document's content in your context now, that was manually removed by me."
+  },
+  {
+    "role": "user",
+    "content": "# User question:\nhi"
+  },
+  {
+    "role": "assistant",
+    "content": "Hello! How can I help you today?"
+  },
+  {
+    "role": "user",
+    "content": "# User question:\n🎤  Which documents do you have access to?"
+  },
+  {
+    "role": "assistant",
+    "content": "I currently have access to the document:\n\n*   **WorldQuant_Research Consultant_Onboarding_Confirmation.pdf**"
+  },
+  {
+    "role": "user",
+    "content": "# User question:\n🎤  Hi, so my name is Tasmay Pankaj Tibrewal. I am a third year undergraduate at IIT Kharagpur and the document that you have is a research consultant on boarding confirmation and I am applying for an internship at a place. So for this, for that internship, I need to have some CV pointers regarding my profile. So my profile is in AI and machine learning. And I have had experience in quantitative finance. And I've worked at WorldCount. I have been ranked top two in my college, whi..."
+  },
+  {
+    "role": "assistant",
+    "content": "Hi Tasmay, it's great to learn about your impressive profile! Based on the information you've provided, here are some CV pointers, categorized for clarity, that you can use for your internship application:\n\n**Summary/Profile (Optional, but good for a concise overview):**\n*   Highly accomplished third-year undergraduate at IIT Kharagpur (Top 2 in batch) with a strong foundation in AI/Machine Learning and Quantitative Finance. Proven track record in developing advanced AI models, building quantita..."
+  }
+]

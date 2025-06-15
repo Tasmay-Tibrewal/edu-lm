@@ -276,27 +276,38 @@ def process_video_upload_and_removal_wrapper(files, youtube_urls_text, chat_hist
     
     return chat_history, generate_media_viewer(documents, document_order, videos, video_order)
 
-def remove_video_wrapper(video_id, chat_history):
+def remove_video_wrapper(video_id, chat_history, current_videos):
     """
-    Wrapper for remove_video to handle global variables.
-    
-    Args:
-        video_id: ID of the video to remove
-        chat_history: Current chat history
-        
-    Returns:
-        Updated chat history and video viewer HTML
+    Wrapper for remove_video to handle global variables and update the video upload component.
     """
     global videos, video_order, structured_videos_cache
+
+    if not (video_id and video_id.strip()):
+        return chat_history, generate_media_viewer(documents, document_order, videos, video_order), current_videos
+
+    video_id_to_remove = video_id.strip()
     
-    if video_id and video_id.strip():
-        chat_history, videos, video_order, structured_videos_cache = remove_video(
-            video_id.strip(), chat_history, videos, video_order, structured_videos_cache
-        )
-        
-        save_chat_history(chat_history)
-    
-    return chat_history, generate_media_viewer(documents, document_order, videos, video_order)
+    if video_id_to_remove not in videos:
+        error_message = f"❌ Video not found: {video_id_to_remove}"
+        chat_history.append({"role": "assistant", "content": error_message})
+        return chat_history, generate_media_viewer(documents, document_order, videos, video_order), current_videos
+
+    video_info = videos.get(video_id_to_remove)
+    file_name_to_remove = video_info.get("file_name") if video_info else None
+
+    # Call the existing removal utility
+    chat_history, videos, video_order, structured_videos_cache = remove_video(
+        video_id_to_remove, chat_history, videos, video_order, structured_videos_cache
+    )
+    save_chat_history(chat_history)
+
+    # --- Update the video input component ---
+    # Only update for local videos, not YouTube URLs
+    updated_video_list = current_videos
+    if video_info and video_info.get("video_type") == "local" and file_name_to_remove:
+        updated_video_list = [v for v in current_videos if v and Path(v.name).name != file_name_to_remove]
+
+    return chat_history, generate_media_viewer(documents, document_order, videos, video_order), updated_video_list
 
 def process_multiple_youtube_urls_wrapper(urls_text, chat_history):
     """
@@ -310,6 +321,72 @@ def process_multiple_youtube_urls_wrapper(urls_text, chat_history):
         Updated chat history and video viewer HTML
     """
     return process_video_upload_wrapper(None, urls_text, chat_history)
+
+def remove_document_wrapper(doc_id, chat_history, current_files):
+    """
+    Wrapper for removing documents triggered by cross buttons in the media viewer.
+    Also updates the file upload component.
+    """
+    global documents, document_order, document_positions, llm_chat_history, llm_chat_history_show, structured_docs_cache
+
+    if not (doc_id and doc_id.strip()):
+        return chat_history, generate_media_viewer(documents, document_order, videos, video_order), current_files
+
+    doc_id_to_remove = doc_id.strip()
+    if doc_id_to_remove not in documents:
+        error_message = f"❌ Document not found: {doc_id_to_remove}"
+        chat_history.append({"role": "assistant", "content": error_message})
+        return chat_history, generate_media_viewer(documents, document_order, videos, video_order), current_files
+
+    file_name_to_remove = documents[doc_id_to_remove]["file_name"]
+
+    # --- Replicate removal logic from upload_and_process ---
+    removed_files = []
+    removed_positions = {}
+
+    if doc_id_to_remove in document_positions:
+        removed_positions[file_name_to_remove] = document_positions[doc_id_to_remove]
+    
+    del documents[doc_id_to_remove]
+    document_order.remove(doc_id_to_remove)
+    
+    if doc_id_to_remove in document_positions:
+        del document_positions[doc_id_to_remove]
+    removed_files.append(file_name_to_remove)
+    print(f"Completely removed document via HTML button: {file_name_to_remove}")
+
+    if removed_files and llm_chat_history is not None:
+        for removed in removed_files:
+            deletion_block = [
+                {
+                    "type": "text",
+                    "text": f"Document name: {removed}.\nThis document contains unknown pages with text and images.\nThis document was deleted manually by the user and you no longer have access to its contents. It was earlier uploaded by the user but now it is removed and no longer available. You no longer have access to this document's information. However it may be the case that the document was referenced in the chat history, which information has not been removed. The only information about this document that you have is that mentioned in the chat history in its reference. Rest no information is available, you do not have access to its content. User has also notified about at which point this information was deleted in the chat history."
+                }
+            ]
+            internal_notification = {
+                "role": "user",
+                "content": f"The document: {removed} was deleted at this point in the chat history, you may find references about the document before this in the chathistory, but not after this since it was deleted. You also wont have the document's content in your context now, that was manually removed by me."
+            }
+            pos = removed_positions.get(removed)
+            if pos is not None and pos < len(llm_chat_history):
+                llm_chat_history[pos] = {"role": "user", "content": deletion_block}
+                llm_chat_history_show[pos] = {"role": "user", "content": deletion_block}
+            llm_chat_history.append(internal_notification)
+            llm_chat_history_show.append(internal_notification)
+        print(f"Updated LLM history for removed document: {file_name_to_remove}")
+
+    status_message = f"🗑️ Removed: '{file_name_to_remove}'"
+    chat_history.append({"role": "assistant", "content": status_message})
+
+    save_chat_history(chat_history)
+    if llm_chat_history:
+        save_llm_call_payload(llm_chat_history, llm_chat_history_show)
+    structured_docs_cache = save_docs_structured_info(documents, document_order, structured_docs_cache)
+
+    # --- Update the file input component ---
+    updated_file_list = [f for f in current_files if f and Path(f.name).name != file_name_to_remove]
+
+    return chat_history, generate_media_viewer(documents, document_order, videos, video_order), updated_file_list
 
 def update_video_removal_dropdown():
     """
@@ -538,10 +615,15 @@ css = """
 .video-removal-trigger {
     display: none !important;
 }
+
+/* Hide the document removal trigger textbox */
+.document-removal-trigger {
+    display: none !important;
+}
 """
 
-# JavaScript for handling video removal
-video_removal_js = """
+# JavaScript for handling video and document removal
+removal_js = """
 async () => {
     // Set the video removal function on globalThis so HTML onclick can access it
     globalThis.removeVideoClick = (videoId) => {
@@ -569,6 +651,42 @@ async () => {
                 if (classInputs.length > 0) {
                     const input = classInputs[0];
                     input.value = videoId;
+                    
+                    ['input', 'change', 'blur'].forEach(eventType => {
+                        const event = new Event(eventType, { bubbles: true, cancelable: true });
+                        input.dispatchEvent(event);
+                    });
+                }
+            }
+        }
+    };
+    
+    // Set the document removal function on globalThis so HTML onclick can access it
+    globalThis.removeDocumentClick = (docId) => {
+        if (confirm('Are you sure you want to remove this document?')) {
+            // Find the hidden textbox by placeholder
+            const hiddenInputs = document.querySelectorAll('textarea[placeholder="remove_document_trigger"], input[placeholder="remove_document_trigger"]');
+            
+            if (hiddenInputs.length > 0) {
+                const input = hiddenInputs[0];
+                input.value = docId;
+                
+                // Fire events to trigger Gradio
+                ['input', 'change', 'blur'].forEach(eventType => {
+                    const event = new Event(eventType, { bubbles: true, cancelable: true });
+                    input.dispatchEvent(event);
+                });
+                
+                // Focus and blur to simulate interaction
+                input.focus();
+                setTimeout(() => input.blur(), 10);
+                
+            } else {
+                // Fallback: try to find by class
+                const classInputs = document.querySelectorAll('.document-removal-trigger textarea, .document-removal-trigger input');
+                if (classInputs.length > 0) {
+                    const input = classInputs[0];
+                    input.value = docId;
                     
                     ['input', 'change', 'blur'].forEach(eventType => {
                         const event = new Event(eventType, { bubbles: true, cancelable: true });
@@ -616,6 +734,15 @@ with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
                     placeholder="remove_video_trigger",
                     elem_id="remove_video_hidden",
                     elem_classes=["video-removal-trigger"],
+                    interactive=True
+                )
+                
+                # Hidden textbox for document removal (cross buttons)
+                remove_document_hidden = gr.Textbox(
+                    visible=False,
+                    placeholder="remove_document_trigger",
+                    elem_id="remove_document_hidden",
+                    elem_classes=["document-removal-trigger"],
                     interactive=True
                 )
 
@@ -692,11 +819,21 @@ with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
         # Handle video removal from HTML cross buttons (JavaScript triggered)
         remove_video_hidden.change(
             fn=remove_video_wrapper,
-            inputs=[remove_video_hidden, chatbot],
-            outputs=[chatbot, media_viewer]
+            inputs=[remove_video_hidden, chatbot, video_input],
+            outputs=[chatbot, media_viewer, video_input]
         ).then(
             fn=lambda: "",  # Clear the hidden field
             outputs=[remove_video_hidden]
+        )
+        
+        # Handle document removal from HTML cross buttons (JavaScript triggered)
+        remove_document_hidden.change(
+            fn=remove_document_wrapper,
+            inputs=[remove_document_hidden, chatbot, file_input],
+            outputs=[chatbot, media_viewer, file_input]
+        ).then(
+            fn=lambda: "",  # Clear the hidden field
+            outputs=[remove_document_hidden]
         )
         
         # Chain the "add placeholder" (no spinner) → then "stream reply" (spinner+stream)
@@ -761,7 +898,7 @@ with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
         fn=reset_all_state_wrapper,
         outputs=[chatbot, media_viewer],
         queue=False,
-        js=video_removal_js
+        js=removal_js
     )
 
 # Launch the app

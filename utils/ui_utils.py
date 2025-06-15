@@ -141,9 +141,13 @@ def generate_media_viewer(documents, document_order, videos, video_order):
             content_preview = doc_data["text"][:150] + "..." if len(doc_data["text"]) > 150 else doc_data["text"]
             
             viewer_html += f"""
-            <div style="border: 1px solid #444; border-radius: 5px; margin-bottom: 10px; background-color: #1a1a1a;">
-                <div style="padding: 12px; border-bottom: 1px solid #444;">
-                    <h5 style="color: #3498db; margin: 0 0 3px 0;">📄 {file_name}</h5>
+            <div style="border: 1px solid #444; border-radius: 5px; margin-bottom: 10px; background-color: #1a1a1a;" id="document-{doc_id}">
+                <div style="padding: 12px; border-bottom: 1px solid #444; position: relative;">
+                    <span style="position: absolute; top: 8px; right: 8px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 20px;"
+                          onclick="removeDocumentClick('{doc_id}')"
+                          class="remove-document-btn"
+                          title="Remove document">×</span>
+                    <h5 style="color: #3498db; margin: 0 0 3px 25px;">📄 {file_name}</h5>
                     <p style="color: #888; margin: 0; font-size: 11px;">{page_count} pages • Preview: {content_preview}</p>
                 </div>
                 <div style="padding: 8px 12px;">
@@ -255,6 +259,11 @@ def generate_media_viewer(documents, document_order, videos, video_order):
     
     <style>
         .remove-video-btn:hover {
+            background: #c0392b !important;
+            transform: scale(1.1);
+            transition: all 0.2s ease;
+        }
+        .remove-document-btn:hover {
             background: #c0392b !important;
             transform: scale(1.1);
             transition: all 0.2s ease;

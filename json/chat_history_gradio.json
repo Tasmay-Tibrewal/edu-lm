@@ -2,7 +2,19 @@
   {
     "role": "assistant",
     "metadata": null,
-    "content": "🎥 Added 2 videos: YouTube: JgDNFQ2RaLQ, YouTube: k0Ka-deab1s\n\nTotal videos: 2.",
+    "content": "✅ Added 2 files: WorldQuant_Research Consultant_Onboarding_Confirmation.pdf, Tasmay P Tibrewal_Harvard_Summer Research Internship_Acceptance Letter.pdf\n\nTotal documents: 2. Chat history preserved.",
+    "options": null
+  },
+  {
+    "role": "assistant",
+    "metadata": null,
+    "content": "🗑️ Removed: 'Tasmay P Tibrewal_Harvard_Summer Research Internship_Acceptance Letter.pdf'",
+    "options": null
+  },
+  {
+    "role": "assistant",
+    "metadata": null,
+    "content": "🎥 Added 2 videos: 5 ways to shoot yourself in the foot with C - Fireship 720p, h264 - Copy.mp4, 5 ways to shoot yourself in the foot with C - Fireship 720p, h264.mp4\n\nTotal videos: 2.",
     "options": null
   },
   {
@@ -20,23 +32,43 @@
   {
     "role": "assistant",
     "metadata": null,
-    "content": "🎥 Added 2 videos: 5 ways to shoot yourself in the foot with C - Fireship 720p, h264 - Copy.mp4, 5 ways to shoot yourself in the foot with C - Fireship 720p, h264.mp4\n\nTotal videos: 4.",
+    "content": "🗑️ Removed video: '5 ways to shoot yourself in the foot with C - Fireship 720p, h264.mp4'\n\nTotal videos: 1.",
+    "options": null
+  },
+  {
+    "role": "user",
+    "metadata": null,
+    "content": "hi",
     "options": null
   },
   {
     "role": "assistant",
     "metadata": null,
-    "content": "🤖 Generating AI descriptions for new videos... This may take a few minutes.",
+    "content": "Hello! How can I help you today?",
+    "options": null
+  },
+  {
+    "role": "user",
+    "metadata": null,
+    "content": "🎤  Which documents do you have access to?",
     "options": null
   },
   {
     "role": "assistant",
     "metadata": null,
-    "content": "✅ Video descriptions generated successfully! Processed 2 new videos with AI analysis.",
+    "content": "I currently have access to the document:\n\n*   **WorldQuant_Research Consultant_Onboarding_Confirmation.pdf**",
+    "options": null
+  },
+  {
+    "role": "user",
+    "metadata": null,
+    "content": "🎤  Hi, so my name is Tasmay Pankaj Tibrewal. I am a third year undergraduate at IIT Kharagpur and the document that you have is a research consultant on boarding confirmation and I am applying for an internship at a place. So for this, for that internship, I need to have some CV pointers regarding my profile. So my profile is in AI and machine learning. And I have had experience in quantitative finance. And I've worked at WorldCount. I have been ranked top two in my college, which is IIT Kharagpur. and about top 200 across the world right and i have had building alphas and i have had total more than 50 000 points participated in the international competitions like iqc which is international corn championship hosted by world corn right and i had clear the first level as well right and had gone to the second level of the competition and yeah so basically world is a international quantitative finance firm holding assets of i like having assets under management of about nine billion dollars and it is part of millennial fund i guess right so millennial fund or millennial capital or something like that millennium capital maybe right so yeah that is mostly all the information other than that I have had I have had work experience at Harvard University as a research intern I have had worked in various national level hackathons and competitions like internet technology meet well point oh I worked there and we work there on a problem statement given to us by a startup called DevRev So we worked on the problem statement which was related to basically tool use in large language models So we worked on iterative, conditional, multipath, then optimal tool usage by fine tuning and improving the performance of large language models. right so these models were quite well trained to match the performance with the comparable to the closed source model on of that time on tool usage tasks right so these models included models like uh uh code llama or llama 2 right and deep seek 1.7 b right and uh yeah that was entirety then i participated in smart india hackathon which is national hackathon where i was national finalist we worked on identifying uh we worked on a fraud detection problem statement where we uh try to identify medical invoices for fraud detection right so basically people would try to defraud the insurance agencies by manually editing or creating fake medical invoices so we try to detect that from the real ones using template matching then techniques like GANs or even vision language models right so that it could be the areas could be segmented and a flagging system we had built which flagged these particular things as chances of high probability of frauding or low probability of frauding right.",
     "options": null
   },
   {
     "role": "assistant",
-    "content": "🗑️ Removed video: '5 ways to shoot yourself in the foot with C - Fireship 720p, h264.mp4'\n\nTotal videos: 3."
+    "metadata": null,
+    "content": "Hi Tasmay, it's great to learn about your impressive profile! Based on the information you've provided, here are some CV pointers, categorized for clarity, that you can use for your internship application:\n\n**Summary/Profile (Optional, but good for a concise overview):**\n*   Highly accomplished third-year undergraduate at IIT Kharagpur (Top 2 in batch) with a strong foundation in AI/Machine Learning and Quantitative Finance. Proven track record in developing advanced AI models, building quantitative strategies, and excelling in national and international competitions.\n\n**Education:**\n*   **Indian Institute of Technology Kharagpur**\n    *   3rd Year Undergraduate (currently)\n    *   Ranked in the Top 2% of the batch.\n\n**Work & Research Experience:**\n*   **Research Consultant, WorldQuant BRAIN** (Confirmed by document: WorldQuant_Research Consultant_Onboarding_Confirmation.pdf)\n    *   Engaged as a fully approved Research Consultant with WorldQuant BRAIN, an international quantitative finance firm with approximately $9 billion in Assets Under Management (part of Millennium Capital).\n    *   Developed and optimized quantitative trading strategies (alphas).\n    *   Participated in the International Quant Championship (IQC), achieving a global ranking within the Top 200 out of a competitive pool, and clearing the first level to advance to the second level.\n    *   Accrued over 50,000 points through participation in IQC and other platform activities.\n*   **Research Intern, Harvard University**\n    *   *You mentioned this experience, but please provide more details about your specific contributions and projects if you'd like to elaborate further.*\n\n**Projects & Competitions (Highlighting AI/ML & relevant skills):**\n*   **Internet Technology Meet (ITM) 2.0 (DevRev Startup Problem Statement)**\n    *   Developed advanced solutions for optimal tool usage in Large Language Models (LLMs).\n    *   Implemented iterative, conditional, and multipath approaches to enhance LLM performance.\n    *   Fine-tuned models (e.g., Code Llama, Llama 2, DeepSeek 1.7B) to achieve performance comparable to closed-source models on complex tool usage tasks.\n*   **Smart India Hackathon (National Finalist)**\n    *   Designed and implemented an AI-driven fraud detection system for medical invoices.\n    *   Utilized advanced techniques including template matching, Generative Adversarial Networks (GANs), and Vision-Language Models (VLMs) for invoice segmentation and anomaly detection.\n    *   Developed a flagging system to identify high and low probability instances of fraudulent claims.\n\n**Key Skills:**\n*   **Programming:** (Add specific languages you're proficient in, e.g., Python, C++)\n*   **Machine Learning:** Deep Learning, Natural Language Processing (NLP), Computer Vision, Fraud Detection, Generative Models (GANs), Large Language Models (LLMs), Fine-tuning.\n*   **Quantitative Finance:** Alpha Generation, Algorithmic Trading Concepts, Backtesting, Financial Data Analysis.\n*   **Tools/Libraries:** (e.g., TensorFlow, PyTorch, Scikit-learn, Pandas, NumPy – if applicable)\n\nThese points should provide a strong foundation for your CV. Remember to tailor them slightly to the specific internship description you're applying for, emphasizing the most relevant experiences and skills. Good luck with your application!",
+    "options": null
   }
 ]
