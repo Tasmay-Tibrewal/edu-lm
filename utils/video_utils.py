@@ -36,7 +36,7 @@ def is_youtube_url(url):
     """
     return extract_youtube_id(url) is not None
 
-def process_video_upload(files, youtube_url, chat_history, videos, video_order, genai_client=None, structured_videos_cache=None):
+def process_video_upload(files, youtube_urls, chat_history, videos, video_order, genai_client=None, structured_videos_cache=None):
     """
     Process video uploads (both file uploads and YouTube URLs).
     Keeps videos in memory without saving to disk.
@@ -44,7 +44,7 @@ def process_video_upload(files, youtube_url, chat_history, videos, video_order, 
     
     Args:
         files: List of uploaded video files
-        youtube_url: YouTube URL string (if provided)
+        youtube_urls: List of YouTube URL strings (if provided)
         chat_history: Current chat history
         videos: Dictionary of video data
         video_order: List of video IDs in order
@@ -108,41 +108,46 @@ def process_video_upload(files, youtube_url, chat_history, videos, video_order, 
                 print(f"Error processing video {file.name}: {str(e)}")
                 failed_videos.append(file.name)
     
-    # Handle YouTube URL
-    if youtube_url and youtube_url.strip():
-        try:
-            youtube_url = youtube_url.strip()
-            video_id_yt = extract_youtube_id(youtube_url)
-            
-            if video_id_yt:
-                # Check if YouTube video already exists
-                if video_id_yt in existing_youtube_ids:
-                    print(f"YouTube video {video_id_yt} already exists, skipping...")
-                else:
-                    print(f"\n\nProcessing YouTube URL: {youtube_url}\n")
+    # Handle YouTube URLs (multiple)
+    if youtube_urls:
+        if isinstance(youtube_urls, str):
+            youtube_urls = [youtube_urls]
+        
+        for youtube_url in youtube_urls:
+            if youtube_url and youtube_url.strip():
+                try:
+                    youtube_url = youtube_url.strip()
+                    video_id_yt = extract_youtube_id(youtube_url)
                     
-                    # Generate unique video ID
-                    video_id = f"video_{len(videos)}"
-                    while video_id in videos:
-                        video_id = f"video_{len(videos) + len(processed_videos) + 1}"
-                    
-                    # Store video data
-                    videos[video_id] = {
-                        "file_name": f"YouTube Video ({video_id_yt})",
-                        "file_path": None,
-                        "video_type": "youtube",
-                        "url": youtube_url,
-                        "youtube_id": video_id_yt
-                    }
-                    
-                    video_order.append(video_id)
-                    processed_videos.append(f"YouTube: {video_id_yt}")
-            else:
-                failed_videos.append("Invalid YouTube URL")
-                
-        except Exception as e:
-            print(f"Error processing YouTube URL: {str(e)}")
-            failed_videos.append("YouTube URL processing failed")
+                    if video_id_yt:
+                        # Check if YouTube video already exists
+                        if video_id_yt in existing_youtube_ids:
+                            print(f"YouTube video {video_id_yt} already exists, skipping...")
+                        else:
+                            print(f"\n\nProcessing YouTube URL: {youtube_url}\n")
+                            
+                            # Generate unique video ID
+                            video_id = f"video_{len(videos)}"
+                            while video_id in videos:
+                                video_id = f"video_{len(videos) + len(processed_videos) + 1}"
+                            
+                            # Store video data
+                            videos[video_id] = {
+                                "file_name": f"YouTube Video ({video_id_yt})",
+                                "file_path": None,
+                                "video_type": "youtube",
+                                "url": youtube_url,
+                                "youtube_id": video_id_yt
+                            }
+                            
+                            video_order.append(video_id)
+                            processed_videos.append(f"YouTube: {video_id_yt}")
+                    else:
+                        failed_videos.append(f"Invalid YouTube URL: {youtube_url}")
+                        
+                except Exception as e:
+                    print(f"Error processing YouTube URL {youtube_url}: {str(e)}")
+                    failed_videos.append(f"YouTube URL processing failed: {youtube_url}")
     
     # Create system message only if there are changes
     if chat_history is None:
@@ -333,3 +338,86 @@ def generate_video_descriptions_sync(genai_client, videos, video_order, structur
     except Exception as e:
         print(f"Error in synchronous video description generation: {e}")
         return structured_videos_cache
+
+def remove_video(video_id, chat_history, videos, video_order, structured_videos_cache):
+    """
+    Remove a specific video from the system.
+    
+    Args:
+        video_id: ID of the video to remove
+        chat_history: Current chat history
+        videos: Dictionary of video data
+        video_order: List of video IDs in order
+        structured_videos_cache: In-memory cache for structured video information
+        
+    Returns:
+        Tuple of (updated chat history, videos, video_order, updated_structured_videos_cache)
+    """
+    if chat_history is None:
+        chat_history = []
+    
+    if video_id in videos:
+        video_data = videos[video_id]
+        file_name = video_data["file_name"]
+        
+        # Get video index before removal
+        video_index = video_order.index(video_id) if video_id in video_order else None
+        
+        # Remove from videos dictionary and order list
+        del videos[video_id]
+        if video_id in video_order:
+            video_order.remove(video_id)
+        
+        # Remove from structured videos cache
+        if video_index is not None:
+            structured_videos_cache = [
+                video for video in structured_videos_cache
+                if video.get('video_id') != video_index
+            ]
+        
+        # Add removal message to chat
+        removal_message = f"🗑️ Removed video: '{file_name}'\n\nTotal videos: {len(videos)}."
+        chat_history = chat_history + [{"role": "assistant", "content": removal_message}]
+        
+        print(f"Removed video: {file_name}")
+        
+        # Update structured videos cache with reindexed IDs
+        for i, video in enumerate(structured_videos_cache):
+            video['video_id'] = i
+        
+        # Save updated cache
+        from manage.data_manager import save_video_structured_info
+        structured_videos_cache = save_video_structured_info(structured_videos_cache, structured_videos_cache)
+    
+    return chat_history, videos, video_order, structured_videos_cache
+
+def parse_youtube_urls_from_text(text):
+    """
+    Parse multiple YouTube URLs from a text input.
+    
+    Args:
+        text: Text containing YouTube URLs (one per line or separated by commas/spaces)
+        
+    Returns:
+        List of valid YouTube URLs
+    """
+    if not text or not text.strip():
+        return []
+    
+    # Split by common delimiters
+    urls = []
+    for delimiter in ['\n', ',', ';', ' ']:
+        if delimiter in text:
+            urls = text.split(delimiter)
+            break
+    else:
+        urls = [text]
+    
+    # Clean and validate URLs
+    valid_urls = []
+    for url in urls:
+        url = url.strip()
+        if url and is_youtube_url(url):
+            valid_urls.append(url)
+    
+    return valid_urls

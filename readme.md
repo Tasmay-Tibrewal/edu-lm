@@ -53,7 +53,8 @@ This application is a sophisticated multi-media chat assistant that combines adv
 
 ### 🎥 Video Support
 - **Local video files**: Upload and view multiple video formats (MP4, AVI, MOV, WMV, FLV, WebM, MKV)
-- **YouTube integration**: Add YouTube videos via URL with embedded player
+- **Multiple YouTube URLs**: Add multiple YouTube videos at once by pasting a list of URLs.
+- **Video Removal**: Easily remove videos from the session using a cross button on the video card or in the upload list.
 - **In-memory processing**: Videos stored in memory for session-based access
 - **Combined media viewer**: Unified interface for documents and videos
 - **Video metadata tracking**: Organized video information with structured data export
@@ -185,10 +186,15 @@ The application uses the following models (configurable in [`config.py`](config.
 
 ### Adding Videos
 
-1. **Local Video Files**: Upload video files in supported formats (MP4, AVI, MOV, etc.)
-2. **YouTube Videos**: Paste YouTube URLs and click "Add YouTube" button
-3. **Video Viewing**: Videos are embedded in the media viewer for instant playback
-4. **Duplicate Prevention**: System prevents uploading duplicate videos
+1. **Local Video Files**: Upload one or more video files in supported formats (MP4, AVI, MOV, etc.).
+2. **Multiple YouTube Videos**: Paste multiple YouTube URLs (one per line) into the text area and click "Add YouTube Videos".
+3. **Video Viewing**: Videos are embedded in the media viewer for instant playback.
+4. **Duplicate Prevention**: The system prevents uploading duplicate videos.
+
+### Removing Videos
+
+1. **From Media Viewer**: Click the red cross (×) button on any video card in the media viewer to remove it.
+2. **From Upload List**: For local videos, clicking the cross (×) next to the file in the upload component will also remove it from the session.
 
 ### Chatting with Documents
 
@@ -351,14 +357,16 @@ main.py
 ### 4. Video Processing Module ([`utils/video_utils.py`](utils/video_utils.py:1))
 
 **Video Upload & YouTube Integration**
-- **[`process_video_upload()`](utils/video_utils.py:6)**: Handles local video files and YouTube URLs with automatic description generation
-- **[`extract_youtube_id()`](utils/video_utils.py:49)**: Extracts video ID from YouTube URLs
-- **[`generate_new_video_descriptions_sync()`](utils/video_utils.py:240)**: Synchronous wrapper for new video processing
-- **[`generate_new_video_descriptions_async()`](utils/video_utils.py:207)**: Asynchronous processing for parallel video analysis
-- **Video Storage**: In-memory storage with metadata tracking
-- **Duplicate Prevention**: Avoids re-uploading same videos and prevents reprocessing
-- **Smart Caching**: Tracks existing video IDs to optimize processing workflow
-- **Automatic Triggering**: Initiates video description generation immediately upon upload
+- **[`process_video_upload()`](utils/video_utils.py:39)**: Handles local video files and multiple YouTube URLs with automatic description generation.
+- **[`remove_video()`](utils/video_utils.py:342)**: Removes a specific video from the system, including from memory and JSON files.
+- **[`parse_youtube_urls_from_text()`](utils/video_utils.py:394)**: Parses multiple YouTube URLs from a single text input.
+- **[`extract_youtube_id()`](utils/video_utils.py:11)**: Extracts video ID from YouTube URLs.
+- **[`generate_new_video_descriptions_sync()`](utils/video_utils.py:278)**: Synchronous wrapper for new video processing.
+- **[`generate_new_video_descriptions_async()`](utils/video_utils.py:213)**: Asynchronous processing for parallel video analysis.
+- **Video Storage**: In-memory storage with metadata tracking.
+- **Duplicate Prevention**: Avoids re-uploading same videos and prevents reprocessing.
+- **Smart Caching**: Tracks existing video IDs to optimize processing workflow.
+- **Automatic Triggering**: Initiates video description generation immediately upon upload.
 
 ### 5. Video Description Module ([`utils/video_description.py`](utils/video_description.py:1))
 
@@ -387,16 +395,17 @@ main.py
 ### 6. UI Components Module ([`utils/ui_utils.py`](utils/ui_utils.py:1))
 
 **HTML Generation & Interface Components**
-- **[`generate_document_buttons()`](utils/ui_utils.py:6)**: Creates document navigation HTML
-- **[`generate_media_viewer()`](utils/ui_utils.py:105)**: Unified document and video viewer with dual dropdown interface
-- **[`generate_video_description_json()`](utils/ui_utils.py:251)**: Generates video description display with status indicators
-- **[`create_syntax_highlighted_json()`](utils/ui_utils.py:328)**: Creates beautiful, colorful JSON syntax highlighting
-- **Responsive Design**: Mobile-friendly HTML components
-- **Interactive Elements**: Expandable content and video players
-- **Syntax Highlighting**: Professional code-like JSON display with color-coded elements
-- **Dual Interface**: Separate dropdowns for video playback and JSON descriptions
-- **Status Management**: Real-time indicators for processing state and availability
-- **Error Handling**: User-friendly error displays and fallback messages
+- **[`generate_document_buttons()`](utils/ui_utils.py:6)**: Creates document navigation HTML.
+- **[`generate_media_viewer()`](utils/ui_utils.py:105)**: Unified document and video viewer with dual dropdown interface and removal buttons.
+- **[`generate_youtube_url_manager()`](utils/ui_utils.py:449)**: Generates HTML interface for managing multiple YouTube URLs.
+- **[`generate_video_description_json()`](utils/ui_utils.py:267)**: Generates video description display with status indicators.
+- **[`create_syntax_highlighted_json()`](utils/ui_utils.py:344)**: Creates beautiful, colorful JSON syntax highlighting.
+- **Responsive Design**: Mobile-friendly HTML components.
+- **Interactive Elements**: Expandable content and video players.
+- **Syntax Highlighting**: Professional code-like JSON display with color-coded elements.
+- **Dual Interface**: Separate dropdowns for video playback and JSON descriptions.
+- **Status Management**: Real-time indicators for processing state and availability.
+- **Error Handling**: User-friendly error displays and fallback messages.
 
 ### 7. State Management Module ([`manage/state_manager.py`](manage/state_manager.py:1))
 
@@ -410,10 +419,13 @@ main.py
 ### 8. Main Application ([`main.py`](main.py:1))
 
 **Gradio UI & Global Coordination**
-- **Global Variables**: Manages application-wide state
-- **Wrapper Functions**: Bridges modules with global state
-- **UI Event Handlers**: Connects Gradio events to module functions
-- **Session Management**: Coordinates data flow between modules
+- **Global Variables**: Manages application-wide state.
+- **Wrapper Functions**: Bridges modules with global state.
+    - **[`process_video_upload_and_removal_wrapper()`](main.py:211)**: Handles both video uploads and removals from the file upload component.
+    - **[`remove_video_wrapper()`](main.py:279)**: Handles video removal triggered by the cross buttons in the media viewer.
+    - **[`process_multiple_youtube_urls_wrapper()`](main.py:301)**: Handles batch processing of multiple YouTube URLs.
+- **UI Event Handlers**: Connects Gradio events to module functions.
+- **Session Management**: Coordinates data flow between modules.
 
 ### Data Flow Architecture
 

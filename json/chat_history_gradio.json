@@ -1,14 +1,42 @@
 [
   {
     "role": "assistant",
-    "content": "🎥 Added video: '5 ways to shoot yourself in the foot with C - Fireship 720p, h264.mp4'\n\nTotal videos: 1."
+    "metadata": null,
+    "content": "🎥 Added 2 videos: YouTube: JgDNFQ2RaLQ, YouTube: k0Ka-deab1s\n\nTotal videos: 2.",
+    "options": null
   },
   {
     "role": "assistant",
-    "content": "🤖 Generating AI descriptions for new videos... This may take a few minutes."
+    "metadata": null,
+    "content": "🤖 Generating AI descriptions for new videos... This may take a few minutes.",
+    "options": null
   },
   {
     "role": "assistant",
-    "content": "ℹ️ No new videos to process for descriptions."
+    "metadata": null,
+    "content": "✅ Video descriptions generated successfully! Processed 2 new videos with AI analysis.",
+    "options": null
+  },
+  {
+    "role": "assistant",
+    "metadata": null,
+    "content": "🎥 Added 2 videos: 5 ways to shoot yourself in the foot with C - Fireship 720p, h264 - Copy.mp4, 5 ways to shoot yourself in the foot with C - Fireship 720p, h264.mp4\n\nTotal videos: 4.",
+    "options": null
+  },
+  {
+    "role": "assistant",
+    "metadata": null,
+    "content": "🤖 Generating AI descriptions for new videos... This may take a few minutes.",
+    "options": null
+  },
+  {
+    "role": "assistant",
+    "metadata": null,
+    "content": "✅ Video descriptions generated successfully! Processed 2 new videos with AI analysis.",
+    "options": null
+  },
+  {
+    "role": "assistant",
+    "content": "🗑️ Removed video: '5 ways to shoot yourself in the foot with C - Fireship 720p, h264.mp4'\n\nTotal videos: 3."
   }
 ]

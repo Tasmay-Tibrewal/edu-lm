@@ -172,9 +172,13 @@ def generate_media_viewer(documents, document_order, videos, video_order):
                 youtube_id = video_data["youtube_id"]
                 embed_url = f"https://www.youtube.com/embed/{youtube_id}"
                 viewer_html += f"""
-                <div style="border: 1px solid #444; border-radius: 5px; margin-bottom: 10px; background-color: #1a1a1a;">
-                    <div style="padding: 12px; border-bottom: 1px solid #444;">
-                        <h5 style="color: #e74c3c; margin: 0 0 3px 0;">🎥 {file_name}</h5>
+                <div style="border: 1px solid #444; border-radius: 5px; margin-bottom: 10px; background-color: #1a1a1a;" id="video-{video_id}">
+                    <div style="padding: 12px; border-bottom: 1px solid #444; position: relative;">
+                        <span style="position: absolute; top: 8px; right: 8px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 20px;"
+                              onclick="removeVideoClick('{video_id}')"
+                              class="remove-video-btn"
+                              title="Remove video">×</span>
+                        <h5 style="color: #e74c3c; margin: 0 0 3px 25px;">🎥 {file_name}</h5>
                         <p style="color: #888; margin: 0; font-size: 11px;">YouTube Video • ID: {youtube_id}</p>
                     </div>
                     <div style="padding: 8px 12px;">
@@ -208,9 +212,13 @@ def generate_media_viewer(documents, document_order, videos, video_order):
                 data_uri = f"data:video/mp4;base64,{b64}"
 
                 viewer_html += f"""
-                <div style="border:1px solid #444; border-radius:5px; margin-bottom:10px; background:#1a1a1a;">
-                <div style="padding:12px; border-bottom:1px solid #444;">
-                    <h5 style="color:#e74c3c; margin:0 0 3px 0;">🎥 {file_name}</h5>
+                <div style="border:1px solid #444; border-radius:5px; margin-bottom:10px; background:#1a1a1a;" id="video-{video_id}">
+                <div style="padding:12px; border-bottom:1px solid #444; position: relative;">
+                    <span style="position: absolute; top: 8px; right: 8px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 20px;"
+                          onclick="removeVideoClick('{video_id}')"
+                          class="remove-video-btn"
+                          title="Remove video">×</span>
+                    <h5 style="color:#e74c3c; margin:0 0 3px 25px;">🎥 {file_name}</h5>
                     <p style="color:#888; margin:0; font-size:11px;">Local Video File</p>
                 </div>
                 <div style="padding:8px 12px;">
@@ -244,6 +252,14 @@ def generate_media_viewer(documents, document_order, videos, video_order):
             </p>
         </div>
     </div>
+    
+    <style>
+        .remove-video-btn:hover {
+            background: #c0392b !important;
+            transform: scale(1.1);
+            transition: all 0.2s ease;
+        }
+    </style>
     """
     
     return viewer_html
@@ -429,3 +445,93 @@ def create_syntax_highlighted_json(json_data, indent=0):
         + body +
         '</pre></div>'
     )
+
+def generate_youtube_url_manager():
+    """
+    Generate HTML interface for managing multiple YouTube URLs.
+    
+    Returns:
+        HTML string with YouTube URL management interface
+    """
+    return """
+    <div id="youtube-manager" style="background-color: #1a1a1a; border: 1px solid #444; border-radius: 5px; padding: 15px; margin-bottom: 10px;">
+        <h4 style="color: #e74c3c; margin: 0 0 10px 0;">🎥 YouTube URLs</h4>
+        <div id="youtube-urls-list" style="margin-bottom: 10px;">
+            <div class="youtube-url-item" style="display: flex; margin-bottom: 5px; align-items: center;">
+                <input type="text" class="youtube-url-input" placeholder="https://youtube.com/watch?v=..."
+                       style="flex: 1; padding: 8px; border: 1px solid #666; border-radius: 3px; background: #2a2a2a; color: #e0e0e0; margin-right: 8px;">
+                <button onclick="addYouTubeUrlField()"
+                        style="background: #2ecc71; color: white; border: none; border-radius: 3px; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center;"
+                        title="Add another URL field">+</button>
+            </div>
+        </div>
+        <button onclick="processAllYouTubeUrls()"
+                style="background: #3498db; color: white; border: none; border-radius: 3px; padding: 8px 16px; cursor: pointer; font-size: 12px;">
+            Add All YouTube Videos
+        </button>
+        <p style="color: #888; font-size: 10px; margin: 8px 0 0 0;">
+            💡 Add multiple YouTube URLs and process them all at once
+        </p>
+    </div>
+    
+    <script>
+        function addYouTubeUrlField() {
+            const container = document.getElementById('youtube-urls-list');
+            const newItem = document.createElement('div');
+            newItem.className = 'youtube-url-item';
+            newItem.style.cssText = 'display: flex; margin-bottom: 5px; align-items: center;';
+            newItem.innerHTML = `
+                <input type="text" class="youtube-url-input" placeholder="https://youtube.com/watch?v=..."
+                       style="flex: 1; padding: 8px; border: 1px solid #666; border-radius: 3px; background: #2a2a2a; color: #e0e0e0; margin-right: 8px;">
+                <button onclick="removeYouTubeUrlField(this)"
+                        style="background: #e74c3c; color: white; border: none; border-radius: 3px; width: 30px; height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center;"
+                        title="Remove this URL field">×</button>
+            `;
+            container.appendChild(newItem);
+        }
+        
+        function removeYouTubeUrlField(button) {
+            const container = document.getElementById('youtube-urls-list');
+            if (container.children.length > 1) {
+                button.parentElement.remove();
+            }
+        }
+        
+        function processAllYouTubeUrls() {
+            const inputs = document.querySelectorAll('.youtube-url-input');
+            const urls = Array.from(inputs).map(input => input.value.trim()).filter(url => url);
+            
+            if (urls.length === 0) {
+                alert('Please enter at least one YouTube URL');
+                return;
+            }
+            
+            // Clear the input fields
+            inputs.forEach(input => input.value = '');
+            
+            // Trigger the upload process with multiple URLs
+            // This would need to be connected to the Gradio backend
+            console.log('Processing YouTube URLs:', urls);
+            
+            // For now, we'll join them with newlines and put in a hidden field
+            const hiddenInput = document.querySelector('#youtube_urls_hidden');
+            if (hiddenInput) {
+                hiddenInput.value = urls.join('\\n');
+                // Trigger change event
+                hiddenInput.dispatchEvent(new Event('change'));
+            }
+        }
+        
+        function removeVideo(videoId) {
+            if (confirm('Are you sure you want to remove this video?')) {
+                // Trigger video removal
+                const hiddenInput = document.querySelector('#remove_video_hidden');
+                if (hiddenInput) {
+                    hiddenInput.value = videoId;
+                    // Trigger change event
+                    hiddenInput.dispatchEvent(new Event('change'));
+                }
+            }
+        }
+    </script>
+    """

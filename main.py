@@ -17,9 +17,9 @@ from manage.data_manager import (save_llm_call_payload, save_chat_history,
                                 save_docs_structured_info, save_video_structured_info, initialize_json_files)
 from utils.document_utils import (create_document_content_block, upload_and_process_document,
                                  view_document, create_chat_messages_for_llm)
-from utils.video_utils import process_video_upload
+from utils.video_utils import process_video_upload, remove_video, parse_youtube_urls_from_text
 from utils.audio_utils import process_audio_input, get_last_response_and_convert_to_speech
-from utils.ui_utils import generate_document_buttons, generate_media_viewer
+from utils.ui_utils import generate_document_buttons, generate_media_viewer, generate_youtube_url_manager
 from manage.state_manager import (reset_all_state, add_user_and_placeholder,
                                  clear_chat, stream_assistant_reply)
 
@@ -181,14 +181,15 @@ def upload_and_process(files, chat_history):
     
     return chat_history, generate_media_viewer(documents, document_order, videos, video_order)
 
-def process_video_upload_wrapper(files, youtube_url, chat_history):
+def process_video_upload_wrapper(files, youtube_urls_text, chat_history):
     """
     Wrapper for process_video_upload to handle global variables.
     Automatically generates video descriptions upon upload.
+    Now supports multiple YouTube URLs.
     
     Args:
         files: List of uploaded video files
-        youtube_url: YouTube URL string (if provided)
+        youtube_urls_text: Text containing YouTube URLs (multiple, separated by newlines)
         chat_history: Current chat history
         
     Returns:
@@ -196,13 +197,180 @@ def process_video_upload_wrapper(files, youtube_url, chat_history):
     """
     global videos, video_order, structured_videos_cache
     
+    # Parse multiple YouTube URLs from text
+    youtube_urls = parse_youtube_urls_from_text(youtube_urls_text) if youtube_urls_text else []
+    
     chat_history, processed_videos, failed_videos, structured_videos_cache = process_video_upload(
-        files, youtube_url, chat_history, videos, video_order, genai_client, structured_videos_cache
+        files, youtube_urls, chat_history, videos, video_order, genai_client, structured_videos_cache
     )
     
     save_chat_history(chat_history)
     
     return chat_history, generate_media_viewer(documents, document_order, videos, video_order)
+
+def process_video_upload_and_removal_wrapper(files, youtube_urls_text, chat_history):
+    """
+    Enhanced wrapper that handles both video uploads and removals.
+    Detects when videos are removed from the file upload component and processes accordingly.
+    
+    Args:
+        files: List of uploaded video files (can be None or reduced list)
+        youtube_urls_text: Text containing YouTube URLs
+        chat_history: Current chat history
+        
+    Returns:
+        Updated chat history and video viewer HTML
+    """
+    global videos, video_order, structured_videos_cache
+    
+    # Get current file names from the upload component
+    current_files = files if files else []
+    current_file_names = set()
+    
+    for file in current_files:
+        if file is not None:
+            file_name = os.path.basename(file.name)
+            current_file_names.add(file_name)
+    
+    # Get existing local video files (non-YouTube)
+    existing_local_videos = {}
+    for video_id in list(video_order):
+        if video_id in videos:
+            video_data = videos[video_id]
+            if video_data["video_type"] == "local":
+                existing_local_videos[video_data["file_name"]] = video_id
+    
+    # Find videos to remove (existing local videos not in current upload)
+    videos_to_remove = []
+    for existing_file_name, video_id in existing_local_videos.items():
+        if existing_file_name not in current_file_names:
+            videos_to_remove.append((video_id, existing_file_name))
+    
+    # Remove videos that are no longer in the upload component
+    if videos_to_remove:
+        print(f"🗑️ Detected {len(videos_to_remove)} video(s) removed from upload component")
+        for video_id, file_name in videos_to_remove:
+            print(f"🗑️ Removing video: {file_name} (ID: {video_id})")
+            chat_history, videos, video_order, structured_videos_cache = remove_video(
+                video_id, chat_history, videos, video_order, structured_videos_cache
+            )
+        
+        # Save after removals
+        save_chat_history(chat_history)
+        
+        # If only removals happened (no new files or YouTube URLs), return early
+        if not current_files and not youtube_urls_text:
+            return chat_history, generate_media_viewer(documents, document_order, videos, video_order)
+    
+    # Only process uploads if there are actually new files or YouTube URLs
+    if current_files or youtube_urls_text:
+        # Parse multiple YouTube URLs from text
+        youtube_urls = parse_youtube_urls_from_text(youtube_urls_text) if youtube_urls_text else []
+        
+        # Only call process_video_upload if we have new content to process
+        if current_files or youtube_urls:
+            chat_history, processed_videos, failed_videos, structured_videos_cache = process_video_upload(
+                files, youtube_urls, chat_history, videos, video_order, genai_client, structured_videos_cache
+            )
+            save_chat_history(chat_history)
+    
+    return chat_history, generate_media_viewer(documents, document_order, videos, video_order)
+
+def remove_video_wrapper(video_id, chat_history):
+    """
+    Wrapper for remove_video to handle global variables.
+    
+    Args:
+        video_id: ID of the video to remove
+        chat_history: Current chat history
+        
+    Returns:
+        Updated chat history and video viewer HTML
+    """
+    global videos, video_order, structured_videos_cache
+    
+    if video_id and video_id.strip():
+        chat_history, videos, video_order, structured_videos_cache = remove_video(
+            video_id.strip(), chat_history, videos, video_order, structured_videos_cache
+        )
+        
+        save_chat_history(chat_history)
+    
+    return chat_history, generate_media_viewer(documents, document_order, videos, video_order)
+
+def process_multiple_youtube_urls_wrapper(urls_text, chat_history):
+    """
+    Wrapper for processing multiple YouTube URLs at once.
+    
+    Args:
+        urls_text: Text containing multiple YouTube URLs
+        chat_history: Current chat history
+        
+    Returns:
+        Updated chat history and video viewer HTML
+    """
+    return process_video_upload_wrapper(None, urls_text, chat_history)
+
+def update_video_removal_dropdown():
+    """
+    Update the video removal dropdown with current videos.
+    
+    Returns:
+        Updated dropdown choices
+    """
+    global videos, video_order
+    
+    if not videos or not video_order:
+        return gr.Dropdown(choices=["No videos to remove"], value="No videos to remove")
+    
+    choices = ["Select video to remove..."]
+    for video_id in video_order:
+        if video_id in videos:
+            video_data = videos[video_id]
+            file_name = video_data["file_name"]
+            choices.append(f"{video_id}: {file_name}")
+    
+    return gr.Dropdown(choices=choices, value="Select video to remove...")
+
+def remove_selected_video_wrapper(selected_video, chat_history):
+    """
+    Remove the selected video from the dropdown.
+    
+    Args:
+        selected_video: Selected video from dropdown (format: "video_id: filename")
+        chat_history: Current chat history
+        
+    Returns:
+        Updated chat history, video viewer HTML, and updated dropdown
+    """
+    global videos, video_order, structured_videos_cache
+    
+    if not selected_video or selected_video in ["No videos to remove", "Select video to remove..."]:
+        return chat_history, generate_media_viewer(documents, document_order, videos, video_order), update_video_removal_dropdown()
+    
+    # Extract video_id from the selection (format: "video_id: filename")
+    try:
+        video_id = selected_video.split(": ")[0]
+        
+        chat_history, videos, video_order, structured_videos_cache = remove_video(
+            video_id, chat_history, videos, video_order, structured_videos_cache
+        )
+        
+        save_chat_history(chat_history)
+        
+    except Exception as e:
+        if chat_history is None:
+            chat_history = []
+        error_message = f"❌ Error removing video: {str(e)}"
+        chat_history = chat_history + [{"role": "assistant", "content": error_message}]
+        save_chat_history(chat_history)
+    
+    # Return updated components
+    return (
+        chat_history,
+        generate_media_viewer(documents, document_order, videos, video_order),
+        update_video_removal_dropdown()
+    )
 
 def process_audio_input_wrapper(audio_file):
     """
@@ -365,6 +533,52 @@ css = """
 .json-colon      {color:#82aae5;}   /* :   */
 .json-quote      {color:#7ee7b4;}   /* "   */
 .json-esc   {color:#e4e829;}   /* \n  \"  \\  \\uXXXX */
+
+/* Hide the video removal trigger textbox */
+.video-removal-trigger {
+    display: none !important;
+}
+"""
+
+# JavaScript for handling video removal
+video_removal_js = """
+async () => {
+    // Set the video removal function on globalThis so HTML onclick can access it
+    globalThis.removeVideoClick = (videoId) => {
+        if (confirm('Are you sure you want to remove this video?')) {
+            // Find the hidden textbox by placeholder
+            const hiddenInputs = document.querySelectorAll('textarea[placeholder="remove_video_trigger"], input[placeholder="remove_video_trigger"]');
+            
+            if (hiddenInputs.length > 0) {
+                const input = hiddenInputs[0];
+                input.value = videoId;
+                
+                // Fire events to trigger Gradio
+                ['input', 'change', 'blur'].forEach(eventType => {
+                    const event = new Event(eventType, { bubbles: true, cancelable: true });
+                    input.dispatchEvent(event);
+                });
+                
+                // Focus and blur to simulate interaction
+                input.focus();
+                setTimeout(() => input.blur(), 10);
+                
+            } else {
+                // Fallback: try to find by class
+                const classInputs = document.querySelectorAll('.video-removal-trigger textarea, .video-removal-trigger input');
+                if (classInputs.length > 0) {
+                    const input = classInputs[0];
+                    input.value = videoId;
+                    
+                    ['input', 'change', 'blur'].forEach(eventType => {
+                        const event = new Event(eventType, { bubbles: true, cancelable: true });
+                        input.dispatchEvent(event);
+                    });
+                }
+            }
+        }
+    };
+}
 """
 
 with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
@@ -384,9 +598,26 @@ with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
                 # Video uploads
                 gr.Markdown("#### Videos")
                 video_input = gr.File(label="Upload Videos", file_types=[".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv"], file_count="multiple", height=120)
+                
+                # Multiple YouTube URLs interface
+                gr.Markdown("#### YouTube Videos")
+                youtube_urls_input = gr.Textbox(
+                    label="YouTube URLs (Multiple)",
+                    placeholder="Enter YouTube URLs (one per line):\nhttps://youtube.com/watch?v=...\nhttps://youtube.com/watch?v=...",
+                    lines=3,
+                    value=""
+                )
                 with gr.Row():
-                    youtube_input = gr.Textbox(label="YouTube URL", placeholder="https://youtube.com/watch?v=...", value="", scale=4)
-                    youtube_btn = gr.Button("Add YouTube", elem_classes="button", scale=1, size="lg")
+                    youtube_batch_btn = gr.Button("🎥 Add YouTube Videos", elem_classes="button", scale=1, size="lg")
+                
+                # Hidden textbox for JavaScript communication (cross buttons)
+                remove_video_hidden = gr.Textbox(
+                    visible=False,
+                    placeholder="remove_video_trigger",
+                    elem_id="remove_video_hidden",
+                    elem_classes=["video-removal-trigger"],
+                    interactive=True
+                )
 
                 media_viewer = gr.HTML(label="Media Content", value=generate_media_viewer(documents, document_order, videos, video_order), elem_id="media_viewer")
                 
@@ -433,21 +664,39 @@ with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
         
         # Set up event handlers for videos
         video_input.change(
-            fn=process_video_upload_wrapper,
-            inputs=[video_input, youtube_input, chatbot],
+            fn=process_video_upload_and_removal_wrapper,
+            inputs=[video_input, youtube_urls_input, chatbot],
             outputs=[chatbot, media_viewer]
         )
         
-        youtube_input.submit(
-            fn=process_video_upload_wrapper,
-            inputs=[video_input, youtube_input, chatbot],
+        # Handle multiple YouTube URLs
+        youtube_batch_btn.click(
+            fn=process_multiple_youtube_urls_wrapper,
+            inputs=[youtube_urls_input, chatbot],
             outputs=[chatbot, media_viewer]
+        ).then(
+            fn=lambda: "",  # Clear the textbox after processing
+            outputs=[youtube_urls_input]
         )
         
-        youtube_btn.click(
-            fn=process_video_upload_wrapper,
-            inputs=[video_input, youtube_input, chatbot],
+        # Handle YouTube URLs on Enter
+        youtube_urls_input.submit(
+            fn=process_multiple_youtube_urls_wrapper,
+            inputs=[youtube_urls_input, chatbot],
             outputs=[chatbot, media_viewer]
+        ).then(
+            fn=lambda: "",  # Clear the textbox after processing
+            outputs=[youtube_urls_input]
+        )
+        
+        # Handle video removal from HTML cross buttons (JavaScript triggered)
+        remove_video_hidden.change(
+            fn=remove_video_wrapper,
+            inputs=[remove_video_hidden, chatbot],
+            outputs=[chatbot, media_viewer]
+        ).then(
+            fn=lambda: "",  # Clear the hidden field
+            outputs=[remove_video_hidden]
         )
         
         # Chain the "add placeholder" (no spinner) → then "stream reply" (spinner+stream)
@@ -507,11 +756,12 @@ with gr.Blocks(title="Multi-Media Chat Assistant", css=css) as demo:
             inputs=file_input,
         )
     
-    # Reset state when interface loads/reloads
+    # Reset state when interface loads/reloads and initialize JavaScript
     demo.load(
         fn=reset_all_state_wrapper,
         outputs=[chatbot, media_viewer],
-        queue=False
+        queue=False,
+        js=video_removal_js
     )
 
 # Launch the app
